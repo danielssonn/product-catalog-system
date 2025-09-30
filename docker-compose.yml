@@ -83,11 +83,11 @@ services:
       - product-catalog-network
 
   # Catalog Service
-  catalog-service:
+  product-service:
     build:
       context: ./backend
-      dockerfile: catalog-service/Dockerfile
-    container_name: catalog-service
+      dockerfile: product-service/Dockerfile
+    container_name: product-service
     depends_on:
       mongodb:
         condition: service_healthy
@@ -233,7 +233,7 @@ services:
       dockerfile: api-gateway/Dockerfile
     container_name: api-gateway
     depends_on:
-      - catalog-service
+      - product-service
       - bundle-service
       - cross-sell-service
       - audit-service
@@ -244,7 +244,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 8080
-      CATALOG_SERVICE_URL: http://catalog-service:8081
+      PRODUCT_SERVICE_URL: http://product-service:8081
       BUNDLE_SERVICE_URL: http://bundle-service:8082
       CROSS_SELL_SERVICE_URL: http://cross-sell-service:8083
       AUDIT_SERVICE_URL: http://audit-service:8084

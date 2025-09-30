@@ -1,0 +1,88 @@
+package com.bank.product.domain.solution.service.impl;
+
+import com.bank.product.domain.solution.repository.SolutionRepository;
+import com.bank.product.domain.solution.service.SolutionService;
+import com.bank.product.domain.solution.model.Solution;
+import com.bank.product.domain.solution.model.SolutionStatus;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class SolutionServiceImpl implements SolutionService {
+
+    private final SolutionRepository solutionRepository;
+
+    @Override
+    public Solution getSolution(String tenantId, String solutionId) {
+        log.debug("Fetching solution {} for tenant {}", solutionId, tenantId);
+        return solutionRepository.findByTenantIdAndSolutionId(tenantId, solutionId)
+                .orElseThrow(() -> new RuntimeException("Solution not found: " + solutionId));
+    }
+
+    @Override
+    public Page<Solution> getSolutions(String tenantId, Pageable pageable) {
+        log.debug("Fetching solutions for tenant {} with pagination", tenantId);
+        return solutionRepository.findByTenantId(tenantId, pageable);
+    }
+
+    @Override
+    public Page<Solution> getSolutionsByStatus(String tenantId, SolutionStatus status, Pageable pageable) {
+        log.debug("Fetching solutions for tenant {} with status {}", tenantId, status);
+        return solutionRepository.findByTenantIdAndStatus(tenantId, status, pageable);
+    }
+
+    @Override
+    public Page<Solution> getSolutionsByCategory(String tenantId, String category, Pageable pageable) {
+        log.debug("Fetching solutions for tenant {} in category {}", tenantId, category);
+        return solutionRepository.findByTenantIdAndCategory(tenantId, category, pageable);
+    }
+
+    @Override
+    public Page<Solution> getSolutionsByChannel(String tenantId, String channel, Pageable pageable) {
+        log.debug("Fetching solutions for tenant {} available on channel {}", tenantId, channel);
+        return solutionRepository.findByTenantIdAndChannel(tenantId, channel, pageable);
+    }
+
+    @Override
+    public Page<Solution> getSolutionsByCatalogProduct(String tenantId, String catalogProductId, Pageable pageable) {
+        log.debug("Fetching solutions for tenant {} based on catalog {}", tenantId, catalogProductId);
+        return solutionRepository.findByTenantIdAndCatalogProductId(tenantId, catalogProductId, pageable);
+    }
+
+    @Override
+    @Transactional
+    public Solution updateSolutionStatus(String tenantId, String solutionId, SolutionStatus status, String userId) {
+        log.info("Updating status of solution {} to {} for tenant {}", solutionId, status, tenantId);
+
+        Solution solution = solutionRepository.findByTenantIdAndSolutionId(tenantId, solutionId)
+                .orElseThrow(() -> new RuntimeException("Solution not found: " + solutionId));
+
+        solution.setStatus(status);
+        solution.setUpdatedAt(LocalDateTime.now());
+        solution.setUpdatedBy(userId);
+
+        Solution updated = solutionRepository.save(solution);
+        log.info("Solution {} status updated to {}", solutionId, status);
+
+        return updated;
+    }
+
+    @Override
+    @Transactional
+    public void deleteSolution(String tenantId, String solutionId) {
+        log.info("Deleting solution {} for tenant {}", solutionId, tenantId);
+        if (!solutionRepository.existsByTenantIdAndSolutionId(tenantId, solutionId)) {
+            throw new RuntimeException("Solution not found: " + solutionId);
+        }
+        solutionRepository.deleteByTenantIdAndSolutionId(tenantId, solutionId);
+        log.info("Solution {} deleted successfully", solutionId);
+    }
+}
