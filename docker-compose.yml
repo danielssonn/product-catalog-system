@@ -3,21 +3,22 @@ version: '3.8'
 services:
   # MongoDB
   mongodb:
-    image: mongo:7.0
+    build:
+      context: ./infrastructure/mongodb
+      dockerfile: Dockerfile
     container_name: product-catalog-mongodb
     ports:
-      - "27017:27017"
+      - "27018:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: product_catalog
+      MONGO_INITDB_DATABASE: product_catalog_db
     volumes:
       - mongodb_data:/data/db
-      - ./infrastructure/docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     networks:
       - product-catalog-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/product_catalog --quiet
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/product_catalog_db --quiet
       interval: 10s
       timeout: 5s
       retries: 5
@@ -84,8 +85,8 @@ services:
   # Catalog Service
   catalog-service:
     build:
-      context: ./backend/catalog-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: catalog-service/Dockerfile
     container_name: catalog-service
     depends_on:
       mongodb:
@@ -93,25 +94,26 @@ services:
       kafka:
         condition: service_healthy
     ports:
-      - "8081:8081"
+      - "8082:8081"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog?authSource=admin
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8081
     networks:
       - product-catalog-network
     healthcheck:
-      test: curl -f http://localhost:8081/api/actuator/health || exit 1
+      test: wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
 
   # Bundle Service
   bundle-service:
     build:
-      context: ./backend/bundle-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: bundle-service/Dockerfile
     container_name: bundle-service
     depends_on:
       mongodb:
@@ -122,17 +124,17 @@ services:
       - "8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog?authSource=admin
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8082
     networks:
       - product-catalog-network
 
   # Cross-Sell Service
   cross-sell-service:
     build:
-      context: ./backend/cross-sell-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: cross-sell-service/Dockerfile
     container_name: cross-sell-service
     depends_on:
       mongodb:
@@ -143,17 +145,17 @@ services:
       - "8083:8083"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog?authSource=admin
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8083
     networks:
       - product-catalog-network
 
   # Audit Service
   audit-service:
     build:
-      context: ./backend/audit-service
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: audit-service/Dockerfile
     container_name: audit-service
     depends_on:
       mongodb:
@@ -164,31 +166,91 @@ services:
       - "8084:8084"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog?authSource=admin
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8084
+    networks:
+      - product-catalog-network
+
+  # Event Publisher Service
+  event-publisher-service:
+    build:
+      context: ./backend
+      dockerfile: event-publisher-service/Dockerfile
+    container_name: event-publisher-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8085
+    networks:
+      - product-catalog-network
+
+  # Tenant Service
+  tenant-service:
+    build:
+      context: ./backend
+      dockerfile: tenant-service/Dockerfile
+    container_name: tenant-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+      SERVER_PORT: 8086
+    networks:
+      - product-catalog-network
+
+  # Version Service
+  version-service:
+    build:
+      context: ./backend
+      dockerfile: version-service/Dockerfile
+    container_name: version-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+      SERVER_PORT: 8087
     networks:
       - product-catalog-network
 
   # API Gateway
   api-gateway:
     build:
-      context: ./backend/api-gateway
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: api-gateway/Dockerfile
     container_name: api-gateway
     depends_on:
       - catalog-service
       - bundle-service
       - cross-sell-service
+      - audit-service
+      - tenant-service
+      - version-service
     ports:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+      SERVER_PORT: 8080
       CATALOG_SERVICE_URL: http://catalog-service:8081
       BUNDLE_SERVICE_URL: http://bundle-service:8082
       CROSS_SELL_SERVICE_URL: http://cross-sell-service:8083
       AUDIT_SERVICE_URL: http://audit-service:8084
+      EVENT_PUBLISHER_SERVICE_URL: http://event-publisher-service:8085
+      TENANT_SERVICE_URL: http://tenant-service:8086
+      VERSION_SERVICE_URL: http://version-service:8087
     networks:
       - product-catalog-network
 
