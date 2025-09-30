@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: catalog-service
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/product_catalog}
+      auto-index-creation: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: catalog-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+  security:
+    jwt:
+      secret: ${JWT_SECRET:your-secret-key-change-this-in-production}
+      expiration: 86400000
+
+server:
+  port: 8081
+  servlet:
+    context-path: /api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.bank.productcatalog: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+api:
+  version: "1.0"
+  title: "Product Catalog Service API"
+  description: "API for managing product catalog"
+
+app:
+  versioning:
+    supported-api-versions: "1.0"
+    default-api-version: "1.0"
+    supported-schema-versions: "1.0"
+    default-schema-version: "1.0"

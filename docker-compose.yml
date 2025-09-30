@@ -1,0 +1,200 @@
+version: '3.8'
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: product-catalog-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: product_catalog
+    volumes:
+      - mongodb_data:/data/db
+      - ./infrastructure/docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/product_catalog --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper (required for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: product-catalog-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: nc -z localhost 2181 || exit -1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: product-catalog-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: kafka-broker-api-versions --bootstrap-server kafka:29092 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka UI (Optional - for monitoring)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: product-catalog-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: product-catalog
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - product-catalog-network
+
+  # Catalog Service
+  catalog-service:
+    build:
+      context: ./backend/catalog-service
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog?authSource=admin
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: curl -f http://localhost:8081/api/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Bundle Service
+  bundle-service:
+    build:
+      context: ./backend/bundle-service
+      dockerfile: Dockerfile
+    container_name: bundle-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog?authSource=admin
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+    networks:
+      - product-catalog-network
+
+  # Cross-Sell Service
+  cross-sell-service:
+    build:
+      context: ./backend/cross-sell-service
+      dockerfile: Dockerfile
+    container_name: cross-sell-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog?authSource=admin
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+    networks:
+      - product-catalog-network
+
+  # Audit Service
+  audit-service:
+    build:
+      context: ./backend/audit-service
+      dockerfile: Dockerfile
+    container_name: audit-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog?authSource=admin
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+    networks:
+      - product-catalog-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    depends_on:
+      - catalog-service
+      - bundle-service
+      - cross-sell-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
+      CATALOG_SERVICE_URL: http://catalog-service:8081
+      BUNDLE_SERVICE_URL: http://bundle-service:8082
+      CROSS_SELL_SERVICE_URL: http://cross-sell-service:8083
+      AUDIT_SERVICE_URL: http://audit-service:8084
+    networks:
+      - product-catalog-network
+
+networks:
+  product-catalog-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
