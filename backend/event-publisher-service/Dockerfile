@@ -1,4 +1,4 @@
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY event-publisher-service/src ./event-publisher-service/src
 
 RUN mvn clean package -DskipTests -pl event-publisher-service -am
 
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 

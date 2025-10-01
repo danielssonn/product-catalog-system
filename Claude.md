@@ -21,7 +21,7 @@ Located in `backend/`:
 8. **api-gateway** (port 8080): Entry point and routing
 
 ### Technology Stack
-- **Backend**: Spring Boot 3.2.0, Java 17
+- **Backend**: Spring Boot 3.4.0, Java 21
 - **Database**: MongoDB (port 27018 in Docker)
 - **Messaging**: Apache Kafka
 - **Build**: Maven (multi-module project)
@@ -208,6 +208,40 @@ POST /api/v1/workflow-templates/{id}/test
 - Rule engine evaluates decision tables
 - Kafka for workflow events
 - See [EXTENSIBLE_WORKFLOW_DESIGN.md](EXTENSIBLE_WORKFLOW_DESIGN.md) for complete architecture
+
+### Agentic Workflows (AI + Rules)
+The system combines **explicit rules** with **AI agents** for intelligent decision-making:
+
+**Three Decision Patterns:**
+1. **Pure Rule-Based (DMN)**: Traditional decision tables
+2. **Async Red Flag Detection**: AI agents run in parallel, terminate on critical findings
+3. **Sync Agent Enrichment**: AI agents analyze, then DMN evaluates with AI insights
+
+**Agent Types:**
+- **MCP Agents**: Real-time AI analysis via Model Context Protocol (fraud detection, financial analysis)
+- **GraphRAG Agents**: Knowledge retrieval from graph databases (compliance rules, historical patterns)
+
+**Example Flow:**
+```
+Submit Loan → Launch AI Agents (parallel)
+  ├─→ Fraud Detection Agent → Red Flag? → TERMINATE & AUTO-REJECT
+  ├─→ Credit Risk GraphRAG → Retrieve similar customer patterns
+  └─→ Financial Analysis MCP → Calculate risk scores
+       ↓
+  No Red Flags → Enrich metadata with AI insights
+       ↓
+  Evaluate DMN with enriched data (original + AI scores)
+       ↓
+  Assign Human Approver
+```
+
+**Benefits:**
+- Auto-reject fraud/high-risk cases instantly
+- Auto-approve excellent cases (no human needed)
+- Enrich decisions with AI reasoning and knowledge graphs
+- Full explainability (agent reasoning traces + DMN rules)
+
+See [AGENTIC_WORKFLOW_DESIGN.md](AGENTIC_WORKFLOW_DESIGN.md) for hybrid AI+Rules architecture
 
 ## Areas Requiring Attention
 
