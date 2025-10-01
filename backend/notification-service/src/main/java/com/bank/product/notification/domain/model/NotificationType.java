@@ -1,0 +1,13 @@
+package com.bank.product.notification.domain.model;
+
+public enum NotificationType {
+    WORKFLOW_SUBMITTED,
+    WORKFLOW_APPROVED,
+    WORKFLOW_REJECTED,
+    APPROVAL_TASK_ASSIGNED,
+    APPROVAL_TASK_COMPLETED,
+    WORKFLOW_TIMEOUT,
+    WORKFLOW_ESCALATED,
+    SOLUTION_ACTIVATED,
+    SOLUTION_REJECTED
+}

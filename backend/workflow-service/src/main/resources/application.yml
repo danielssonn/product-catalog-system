@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: workflow-service
+
+  data:
+    mongodb:
+      uri: mongodb://admin:admin123@localhost:27018/product_catalog_db?authSource=admin
+      auto-index-creation: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: workflow-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+server:
+  port: 8089
+  servlet:
+    context-path: /
+
+# Temporal Configuration
+temporal:
+  connection:
+    target: localhost:7233
+  namespace: default
+  workflows:
+    task-queue: workflow-task-queue
+  activities:
+    task-queue: activity-task-queue
+  worker:
+    enabled: true
+    max-concurrent-workflow-task-executors: 100
+    max-concurrent-activity-executors: 100
+
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    mongo:
+      enabled: true
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.bank.product: DEBUG
+    io.temporal: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Workflow Configuration
+workflow:
+  default-timeout-seconds: 3600
+  default-sla-hours: 24
+  escalation:
+    enabled: true
+    check-interval-minutes: 30

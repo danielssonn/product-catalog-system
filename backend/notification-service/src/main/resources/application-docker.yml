@@ -1,0 +1,7 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+
+  kafka:
+    bootstrap-servers: kafka:29092

@@ -1,0 +1,27 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+
+  kafka:
+    bootstrap-servers: kafka:29092
+
+  security:
+    user:
+      name: admin
+      password: admin
+
+# Temporal Configuration for Docker
+temporal:
+  connection:
+    target: temporal:7233
+  namespace: default
+
+server:
+  port: 8089
+
+logging:
+  level:
+    root: INFO
+    com.bank.product: INFO
+    io.temporal: WARN
