@@ -1,0 +1,555 @@
+{
+  "templateId": "HYBRID_LOAN_APPROVAL_V1",
+  "templateVersion": "1.0.0",
+  "name": "Hybrid AI+Rules Loan Approval",
+  "description": "Intelligent loan approval combining MCP agents, GraphRAG, and decision tables",
+  "entityType": "LOAN_APPLICATION",
+  "active": true,
+
+  "agentConfig": {
+    "enableAgents": true,
+    "mode": "HYBRID",
+    "orchestrationStrategy": "PARALLEL",
+    "timeout": 120000,
+    "failOnAgentError": false,
+    "continueOnTimeout": false,
+
+    "agents": [
+      {
+        "agentId": "fraud-detection-mcp",
+        "type": "MCP",
+        "mode": "ASYNC_RED_FLAG",
+        "priority": 100,
+        "timeout": 30000,
+
+        "config": {
+          "mcpServerUrl": "http://fraud-detection:8090",
+          "model": "claude-3-7-sonnet",
+          "temperature": 0.1,
+          "maxTokens": 4000,
+          "systemPrompt": "You are a fraud detection specialist. Analyze loan applications for suspicious patterns, identity mismatches, and fraudulent behavior.",
+          "tools": [
+            "analyze_application_patterns",
+            "check_identity_consistency",
+            "detect_synthetic_identity",
+            "verify_income_sources"
+          ],
+          "reasoningSteps": [
+            {
+              "step": "identity_verification",
+              "tool": "check_identity_consistency",
+              "input": "$.entityData.applicant",
+              "description": "Verify applicant identity consistency"
+            },
+            {
+              "step": "pattern_analysis",
+              "tool": "analyze_application_patterns",
+              "input": "$.entityData",
+              "description": "Analyze application for fraud patterns"
+            },
+            {
+              "step": "income_verification",
+              "tool": "verify_income_sources",
+              "input": "$.entityData.income",
+              "description": "Verify stated income against sources"
+            }
+          ]
+        },
+
+        "redFlagConditions": {
+          "fraudProbability": "> 0.70",
+          "identityMismatch": "true",
+          "syntheticIdentityScore": "> 0.60",
+          "incomeVerificationFailed": "true"
+        },
+
+        "redFlagAction": "TERMINATE_REJECT",
+        "redFlagReasonTemplate": "Fraud risk detected: {fraudReason}. Probability: {fraudProbability}",
+        "redFlagNotifyRoles": ["FRAUD_TEAM", "SECURITY_OFFICER"],
+
+        "enrichmentOutputs": [
+          "fraudProbability",
+          "fraudRiskLevel",
+          "identityVerificationScore",
+          "incomeVerificationStatus"
+        ],
+
+        "outputMapping": {
+          "fraudProbability": "agentFraudScore",
+          "fraudRiskLevel": "agentFraudRisk",
+          "identityVerificationScore": "agentIdentityScore"
+        }
+      },
+
+      {
+        "agentId": "credit-risk-graphrag",
+        "type": "GRAPH_RAG",
+        "mode": "SYNC_ENRICHMENT",
+        "priority": 90,
+        "timeout": 45000,
+
+        "config": {
+          "graphDbUrl": "neo4j://credit-graph:7687",
+          "username": "neo4j",
+          "password": "${GRAPH_DB_PASSWORD}",
+          "embeddingModel": "text-embedding-3-large",
+          "retrievalDepth": 3,
+          "enableCache": true,
+          "cacheTtl": 3600,
+
+          "entities": [
+            "Customer",
+            "Loan",
+            "Industry",
+            "CreditBureau",
+            "Guarantor"
+          ],
+
+          "queries": [
+            {
+              "name": "get_customer_loan_history",
+              "cypher": "MATCH (c:Customer {ssn: $ssn})-[:HAS_LOAN]->(l:Loan) RETURN l.amount, l.status, l.defaulted, l.monthsToDefault, l.originalTerm",
+              "parameters": {
+                "ssn": "$.entityData.applicant.ssn"
+              },
+              "resultMapping": "customerLoanHistory",
+              "description": "Retrieve customer's historical loan performance"
+            },
+            {
+              "name": "calculate_default_rate",
+              "cypher": "MATCH (c:Customer {ssn: $ssn})-[:HAS_LOAN]->(l:Loan) WITH count(l) as total, count(CASE WHEN l.defaulted THEN 1 END) as defaults RETURN toFloat(defaults)/total as defaultRate",
+              "parameters": {
+                "ssn": "$.entityData.applicant.ssn"
+              },
+              "resultMapping": "historicalDefaultRate"
+            },
+            {
+              "name": "get_industry_risk",
+              "cypher": "MATCH (i:Industry {naicsCode: $naicsCode})-[:HAS_METRIC]->(m:RiskMetric) WHERE m.year = $currentYear RETURN m.defaultRate, m.volatility, m.trend",
+              "parameters": {
+                "naicsCode": "$.entityData.business.naicsCode",
+                "currentYear": "2025"
+              },
+              "resultMapping": "industryRiskMetrics",
+              "optional": true
+            },
+            {
+              "name": "find_similar_defaults",
+              "cypher": "MATCH (c1:Customer {ssn: $ssn})-[:SIMILAR_TO]->(c2:Customer)-[:HAS_LOAN]->(l:Loan {defaulted: true}) RETURN count(l) as similarDefaults, avg(l.amount) as avgDefaultAmount",
+              "parameters": {
+                "ssn": "$.entityData.applicant.ssn"
+              },
+              "resultMapping": "similarCustomerDefaults"
+            },
+            {
+              "name": "check_guarantor_reliability",
+              "cypher": "MATCH (g:Guarantor {id: $guarantorId})-[:GUARANTEED]->(l:Loan) WITH g, count(l) as totalGuaranteed, count(CASE WHEN l.defaulted THEN 1 END) as guaranteedDefaults RETURN g.creditScore, toFloat(guaranteedDefaults)/totalGuaranteed as guarantorDefaultRate",
+              "parameters": {
+                "guarantorId": "$.entityData.guarantor.id"
+              },
+              "resultMapping": "guarantorReliability",
+              "optional": true
+            }
+          ],
+
+          "semanticSearch": {
+            "enabled": true,
+            "questionField": "$.entityData.loanPurpose",
+            "topK": 5,
+            "similarityThreshold": 0.75,
+            "nodeTypes": ["LoanCase", "RegulatoryGuideline"],
+            "embeddingProperty": "purposeEmbedding",
+            "hybridSearch": true
+          }
+        },
+
+        "enrichmentOutputs": [
+          "historicalDefaultRate",
+          "similarCustomerDefaults",
+          "industryRiskScore",
+          "graphRiskScore",
+          "guarantorReliabilityScore"
+        ]
+      },
+
+      {
+        "agentId": "financial-analysis-mcp",
+        "type": "MCP",
+        "mode": "SYNC_ENRICHMENT",
+        "priority": 85,
+        "timeout": 60000,
+
+        "config": {
+          "mcpServerUrl": "http://financial-analysis:8093",
+          "model": "claude-3-7-sonnet",
+          "temperature": 0.0,
+          "systemPrompt": "You are a senior credit analyst. Analyze financial statements, calculate key ratios, and assess creditworthiness.",
+          "tools": [
+            "parse_financial_statements",
+            "calculate_dscr",
+            "calculate_ltv",
+            "assess_cash_flow_stability",
+            "evaluate_collateral",
+            "predict_repayment_capacity"
+          ],
+          "reasoningSteps": [
+            {
+              "step": "parse_financials",
+              "tool": "parse_financial_statements",
+              "input": "$.entityData.financialStatements",
+              "description": "Extract and normalize financial data"
+            },
+            {
+              "step": "calculate_coverage_ratio",
+              "tool": "calculate_dscr",
+              "parameters": {
+                "loanAmount": "$.entityData.loanAmount",
+                "interestRate": "$.entityData.interestRate",
+                "term": "$.entityData.termMonths"
+              },
+              "description": "Calculate Debt Service Coverage Ratio"
+            },
+            {
+              "step": "evaluate_collateral_coverage",
+              "tool": "calculate_ltv",
+              "input": "$.entityData.collateral",
+              "description": "Calculate Loan-to-Value ratio"
+            },
+            {
+              "step": "assess_cash_flow",
+              "tool": "assess_cash_flow_stability",
+              "description": "Analyze cash flow patterns and stability"
+            },
+            {
+              "step": "predict_capacity",
+              "tool": "predict_repayment_capacity",
+              "description": "Predict future repayment capacity"
+            }
+          ]
+        },
+
+        "enrichmentOutputs": [
+          "debtServiceCoverageRatio",
+          "loanToValueRatio",
+          "cashFlowStability",
+          "repaymentCapacityScore",
+          "financialHealthScore",
+          "collateralCoverageRatio"
+        ]
+      }
+    ]
+  },
+
+  "decisionTables": [
+    {
+      "name": "Loan Approval Decision with AI Enrichment",
+      "description": "Final approval decision combining original application data with AI agent insights",
+
+      "inputs": [
+        {
+          "name": "loanAmount",
+          "type": "number",
+          "label": "Loan Amount",
+          "expression": "$.entityMetadata.loanAmount",
+          "required": true
+        },
+        {
+          "name": "creditScore",
+          "type": "number",
+          "label": "Credit Score",
+          "expression": "$.entityMetadata.creditScore",
+          "required": true
+        },
+        {
+          "name": "loanType",
+          "type": "string",
+          "label": "Loan Type",
+          "expression": "$.entityMetadata.loanType",
+          "required": true
+        },
+        {
+          "name": "agentFraudScore",
+          "type": "number",
+          "label": "AI Fraud Score",
+          "expression": "$.entityMetadata.agentFraudScore",
+          "required": false
+        },
+        {
+          "name": "graphRiskScore",
+          "type": "number",
+          "label": "Graph Risk Score",
+          "expression": "$.entityMetadata.graphRiskScore",
+          "required": false
+        },
+        {
+          "name": "debtServiceCoverageRatio",
+          "type": "number",
+          "label": "DSCR (from AI)",
+          "expression": "$.entityMetadata.debtServiceCoverageRatio",
+          "required": false
+        },
+        {
+          "name": "collateralCoverageRatio",
+          "type": "number",
+          "label": "Collateral Coverage (from AI)",
+          "expression": "$.entityMetadata.collateralCoverageRatio",
+          "required": false
+        },
+        {
+          "name": "historicalDefaultRate",
+          "type": "number",
+          "label": "Historical Default Rate (from Graph)",
+          "expression": "$.entityMetadata.historicalDefaultRate",
+          "required": false
+        },
+        {
+          "name": "industryRiskScore",
+          "type": "number",
+          "label": "Industry Risk (from Graph)",
+          "expression": "$.entityMetadata.industryRiskScore",
+          "required": false
+        }
+      ],
+
+      "outputs": [
+        {
+          "name": "decision",
+          "type": "string",
+          "label": "Approval Decision"
+        },
+        {
+          "name": "approverRoles",
+          "type": "array",
+          "label": "Required Approvers"
+        },
+        {
+          "name": "approvalCount",
+          "type": "number",
+          "label": "Number of Approvals"
+        },
+        {
+          "name": "isSequential",
+          "type": "boolean",
+          "label": "Sequential Approval"
+        },
+        {
+          "name": "slaHours",
+          "type": "number",
+          "label": "SLA (hours)"
+        },
+        {
+          "name": "conditions",
+          "type": "array",
+          "label": "Approval Conditions"
+        }
+      ],
+
+      "rules": [
+        {
+          "ruleId": "AUTO_REJECT_HIGH_FRAUD_RISK",
+          "priority": 100,
+          "conditions": {
+            "agentFraudScore": "> 50"
+          },
+          "outputs": {
+            "decision": "AUTO_REJECT",
+            "approverRoles": [],
+            "approvalCount": 0,
+            "conditions": ["High fraud risk detected by AI agent"]
+          },
+          "description": "Auto-reject if AI fraud detection indicates high risk",
+          "active": true
+        },
+
+        {
+          "ruleId": "AUTO_REJECT_GRAPH_HIGH_RISK",
+          "priority": 99,
+          "conditions": {
+            "graphRiskScore": "> 80",
+            "historicalDefaultRate": "> 20"
+          },
+          "outputs": {
+            "decision": "AUTO_REJECT",
+            "approverRoles": [],
+            "approvalCount": 0,
+            "conditions": ["Historical default patterns indicate unacceptable risk"]
+          },
+          "description": "Auto-reject based on graph analysis of historical patterns",
+          "active": true
+        },
+
+        {
+          "ruleId": "AUTO_APPROVE_EXCELLENT_AI_ASSESSMENT",
+          "priority": 95,
+          "conditions": {
+            "creditScore": ">= 750",
+            "agentFraudScore": "<= 15",
+            "graphRiskScore": "<= 25",
+            "debtServiceCoverageRatio": ">= 1.5",
+            "collateralCoverageRatio": ">= 1.4",
+            "loanAmount": "<= 500000"
+          },
+          "outputs": {
+            "decision": "AUTO_APPROVE",
+            "approverRoles": [],
+            "approvalCount": 0,
+            "slaHours": 0,
+            "conditions": [
+              "Excellent creditworthiness confirmed by AI analysis",
+              "Low fraud and graph risk scores",
+              "Strong financial ratios"
+            ]
+          },
+          "description": "Auto-approve excellent applications validated by AI",
+          "active": true
+        },
+
+        {
+          "ruleId": "SINGLE_APPROVAL_GOOD_AI_METRICS",
+          "priority": 80,
+          "conditions": {
+            "creditScore": ">= 680",
+            "agentFraudScore": "<= 30",
+            "graphRiskScore": "<= 50",
+            "debtServiceCoverageRatio": ">= 1.25"
+          },
+          "outputs": {
+            "decision": "APPROVE_WITH_CONDITIONS",
+            "approverRoles": ["CREDIT_OFFICER"],
+            "approvalCount": 1,
+            "isSequential": false,
+            "slaHours": 48,
+            "conditions": ["Standard approval with AI validation"]
+          },
+          "description": "Single approval for good applications with positive AI assessment",
+          "active": true
+        },
+
+        {
+          "ruleId": "DUAL_APPROVAL_MODERATE_AI_RISK",
+          "priority": 75,
+          "conditions": {
+            "creditScore": ">= 640",
+            "agentFraudScore": "> 30 && <= 50",
+            "graphRiskScore": "> 50 && <= 70",
+            "debtServiceCoverageRatio": ">= 1.15"
+          },
+          "outputs": {
+            "decision": "APPROVE_WITH_CONDITIONS",
+            "approverRoles": ["CREDIT_OFFICER", "SENIOR_CREDIT_OFFICER"],
+            "approvalCount": 2,
+            "isSequential": true,
+            "slaHours": 72,
+            "conditions": [
+              "Enhanced review required due to moderate AI risk scores",
+              "Consider additional documentation",
+              "Potential for reduced loan amount or additional collateral"
+            ]
+          },
+          "description": "Dual approval when AI identifies moderate risk",
+          "active": true
+        },
+
+        {
+          "ruleId": "COMMITTEE_APPROVAL_HIGH_VALUE",
+          "priority": 90,
+          "conditions": {
+            "loanAmount": "> 5000000"
+          },
+          "outputs": {
+            "decision": "COMMITTEE_APPROVAL",
+            "approverRoles": ["CREDIT_COMMITTEE"],
+            "approvalCount": 1,
+            "slaHours": 120,
+            "conditions": [
+              "Credit committee review required for high-value loans",
+              "AI risk assessment to be presented to committee"
+            ]
+          },
+          "description": "Credit committee required for large loans regardless of AI scores",
+          "active": true
+        },
+
+        {
+          "ruleId": "ENHANCED_REVIEW_POOR_HISTORY",
+          "priority": 85,
+          "conditions": {
+            "historicalDefaultRate": "> 10 && <= 20",
+            "graphRiskScore": "> 60"
+          },
+          "outputs": {
+            "decision": "APPROVE_WITH_CONDITIONS",
+            "approverRoles": ["SENIOR_CREDIT_OFFICER", "RISK_MANAGER"],
+            "approvalCount": 2,
+            "isSequential": true,
+            "slaHours": 96,
+            "conditions": [
+              "Historical default pattern identified by graph analysis",
+              "Require personal guarantee",
+              "Shorter loan term recommended",
+              "Enhanced monitoring required"
+            ]
+          },
+          "description": "Enhanced review when graph analysis reveals concerning patterns",
+          "active": true
+        }
+      ],
+
+      "defaultRuleId": "DUAL_APPROVAL_MODERATE_AI_RISK",
+      "hitPolicy": "PRIORITY",
+      "ruleOrder": "PRIORITY"
+    }
+  ],
+
+  "approverSelectionStrategy": {
+    "type": "LOAD_BALANCED",
+    "config": {
+      "metric": "PENDING_TASKS",
+      "fallbackStrategy": {
+        "type": "ROUND_ROBIN"
+      }
+    }
+  },
+
+  "escalationRules": [
+    {
+      "escalationAfter": "PT40H",
+      "escalateToRole": "SENIOR_CREDIT_OFFICER",
+      "notifyOriginalAssignee": true,
+      "reasonTemplate": "Loan application pending for {duration}, escalating for expedited review"
+    },
+    {
+      "escalationAfter": "PT80H",
+      "escalateToRole": "VP_CREDIT",
+      "escalationLevel": "L5_VP",
+      "notifyOriginalAssignee": true,
+      "reasonTemplate": "Critical SLA breach on loan application, VP intervention required"
+    }
+  ],
+
+  "callbackHandlers": {
+    "onApprove": "com.bank.product.workflow.handlers.LoanApprovalHandler",
+    "onReject": "com.bank.product.workflow.handlers.LoanRejectionHandler",
+    "onTimeout": "com.bank.product.workflow.handlers.LoanTimeoutHandler",
+    "onValidate": "com.bank.product.workflow.handlers.LoanValidationHandler"
+  },
+
+  "validationRules": {
+    "requiredMetadataFields": [
+      "loanAmount",
+      "creditScore",
+      "loanType"
+    ],
+    "fieldValidations": {
+      "loanAmount": "> 0 && <= 50000000",
+      "creditScore": ">= 300 && <= 850"
+    },
+    "failFast": true
+  },
+
+  "tags": ["lending", "ai-powered", "hybrid", "graphrag", "mcp"],
+  "createdAt": "2025-09-30T15:00:00Z",
+  "createdBy": "system",
+  "publishedAt": "2025-09-30T15:00:00Z",
+  "publishedBy": "admin"
+}
