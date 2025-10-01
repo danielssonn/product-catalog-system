@@ -1,0 +1,211 @@
+{
+  "templateId": "SOLUTION_CONFIG_V1",
+  "templateVersion": "1.0.0",
+  "name": "Solution Configuration Approval",
+  "description": "Approval workflow for configuring tenant solutions from catalog products",
+  "entityType": "SOLUTION_CONFIGURATION",
+  "active": true,
+  "decisionTables": [
+    {
+      "name": "Solution Approval Rules",
+      "description": "Determines approval requirements based on solution characteristics",
+      "inputs": [
+        {
+          "name": "solutionType",
+          "type": "string",
+          "label": "Solution Type",
+          "expression": "$.entityMetadata.solutionType",
+          "required": true
+        },
+        {
+          "name": "pricingVariance",
+          "type": "number",
+          "label": "Pricing Variance %",
+          "expression": "$.entityMetadata.pricingVariance",
+          "required": true
+        },
+        {
+          "name": "riskLevel",
+          "type": "string",
+          "label": "Risk Level",
+          "expression": "$.entityMetadata.riskLevel",
+          "allowedValues": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        },
+        {
+          "name": "tenantTier",
+          "type": "string",
+          "label": "Tenant Tier",
+          "expression": "$.entityMetadata.tenantTier",
+          "allowedValues": ["BASIC", "PROFESSIONAL", "ENTERPRISE"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "approvalRequired",
+          "type": "boolean",
+          "label": "Approval Required",
+          "defaultValue": true
+        },
+        {
+          "name": "approverRoles",
+          "type": "array",
+          "label": "Approver Roles",
+          "defaultValue": []
+        },
+        {
+          "name": "approvalCount",
+          "type": "number",
+          "label": "Required Approvals",
+          "defaultValue": 1
+        },
+        {
+          "name": "isSequential",
+          "type": "boolean",
+          "label": "Sequential Approval",
+          "defaultValue": false
+        },
+        {
+          "name": "slaHours",
+          "type": "number",
+          "label": "SLA (hours)",
+          "defaultValue": 24
+        }
+      ],
+      "rules": [
+        {
+          "ruleId": "AUTO_APPROVE_LOW_RISK",
+          "priority": 100,
+          "conditions": {
+            "pricingVariance": "<= 5",
+            "riskLevel": "LOW"
+          },
+          "outputs": {
+            "approvalRequired": false,
+            "approverRoles": [],
+            "approvalCount": 0,
+            "slaHours": 0
+          },
+          "description": "Auto-approve low-risk solutions with minimal pricing variance",
+          "active": true
+        },
+        {
+          "ruleId": "SINGLE_APPROVAL_STANDARD",
+          "priority": 80,
+          "conditions": {
+            "solutionType": "CHECKING|SAVINGS",
+            "pricingVariance": "<= 10",
+            "riskLevel": "LOW|MEDIUM"
+          },
+          "outputs": {
+            "approvalRequired": true,
+            "approverRoles": ["PRODUCT_MANAGER"],
+            "approvalCount": 1,
+            "isSequential": false,
+            "slaHours": 24
+          },
+          "description": "Single approval for standard solutions",
+          "active": true
+        },
+        {
+          "ruleId": "DUAL_APPROVAL_HIGH_VARIANCE",
+          "priority": 90,
+          "conditions": {
+            "pricingVariance": "> 10",
+            "riskLevel": "MEDIUM|HIGH"
+          },
+          "outputs": {
+            "approvalRequired": true,
+            "approverRoles": ["PRODUCT_MANAGER", "RISK_MANAGER"],
+            "approvalCount": 2,
+            "isSequential": true,
+            "slaHours": 48
+          },
+          "description": "Dual approval for high variance or risky solutions",
+          "active": true
+        },
+        {
+          "ruleId": "EXECUTIVE_APPROVAL_ENTERPRISE",
+          "priority": 95,
+          "conditions": {
+            "tenantTier": "ENTERPRISE",
+            "pricingVariance": "> 20"
+          },
+          "outputs": {
+            "approvalRequired": true,
+            "approverRoles": ["VP_PRODUCT", "VP_RISK", "CFO"],
+            "approvalCount": 3,
+            "isSequential": true,
+            "slaHours": 72
+          },
+          "description": "Executive approval for enterprise solutions with high variance",
+          "active": true
+        },
+        {
+          "ruleId": "CRITICAL_RISK_APPROVAL",
+          "priority": 99,
+          "conditions": {
+            "riskLevel": "CRITICAL"
+          },
+          "outputs": {
+            "approvalRequired": true,
+            "approverRoles": ["CRO", "CEO"],
+            "approvalCount": 2,
+            "isSequential": true,
+            "slaHours": 96
+          },
+          "description": "C-level approval for critical risk solutions",
+          "active": true
+        }
+      ],
+      "defaultRuleId": "SINGLE_APPROVAL_STANDARD",
+      "hitPolicy": "PRIORITY",
+      "ruleOrder": "PRIORITY"
+    }
+  ],
+  "approverSelectionStrategy": {
+    "type": "ROLE_BASED",
+    "config": {
+      "loadBalancing": "ROUND_ROBIN",
+      "fallbackStrategy": "ESCALATE_TO_MANAGER"
+    }
+  },
+  "escalationRules": [
+    {
+      "escalationAfter": "PT20H",
+      "escalateToRole": "SENIOR_PRODUCT_MANAGER",
+      "notifyOriginalAssignee": true,
+      "reasonTemplate": "Task pending for {duration}, escalating to senior management"
+    },
+    {
+      "escalationAfter": "PT40H",
+      "escalateToRole": "VP_PRODUCT",
+      "escalationLevel": "L5_VP",
+      "notifyOriginalAssignee": true,
+      "reasonTemplate": "Critical SLA breach, escalating to VP level"
+    }
+  ],
+  "callbackHandlers": {
+    "onApprove": "com.bank.product.workflow.handlers.SolutionConfigApprovalHandler",
+    "onReject": "com.bank.product.workflow.handlers.SolutionConfigRejectionHandler",
+    "onTimeout": "com.bank.product.workflow.handlers.SolutionConfigTimeoutHandler",
+    "onValidate": "com.bank.product.workflow.handlers.SolutionConfigValidationHandler"
+  },
+  "validationRules": {
+    "requiredMetadataFields": [
+      "solutionType",
+      "pricingVariance",
+      "riskLevel",
+      "tenantTier"
+    ],
+    "fieldValidations": {
+      "pricingVariance": ">= 0 && <= 100",
+      "solutionType": "in ['CHECKING', 'SAVINGS', 'LOAN', 'CREDIT_CARD']"
+    },
+    "failFast": true
+  },
+  "tags": ["product", "solution", "approval"],
+  "createdAt": "2025-09-30T12:00:00Z",
+  "createdBy": "system",
+  "publishedAt": "2025-09-30T12:00:00Z",
+  "publishedBy": "admin"
+}
