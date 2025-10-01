@@ -1,0 +1,217 @@
+{
+  "templateId": "DOCUMENT_VERIFICATION_V1",
+  "templateVersion": "1.0.0",
+  "name": "Document Verification Approval",
+  "description": "Approval workflow for customer onboarding documents",
+  "entityType": "DOCUMENT_VERIFICATION",
+  "active": true,
+  "agentConfig": {
+    "enableAgents": true,
+    "agents": [
+      {
+        "agentId": "kyc-fraud-agent",
+        "type": "MCP",
+        "config": {
+          "endpoint": "http://fraud-service:8090",
+          "model": "claude-3-7-sonnet",
+          "tools": [
+            "analyze_fraud",
+            "check_id"
+          ],
+          "timeout": 20000
+        },
+        "orchestration": {
+          "mode": "ASYNC_RED_FLAG",
+          "priority": 1,
+          "slaHours": 6,
+          "escalation": {
+            "after": "PT6H",
+            "escalateTo": "FRAUD_TEAM",
+            "notify": true
+          }
+        }
+      },
+      {
+        "agentId": "document-ocr-agent",
+        "type": "CUSTOM",
+        "config": {
+          "endpoint": "http://ocr-service:8096",
+          "tools": [
+            "extract_text",
+            "validate_format"
+          ],
+          "timeout": 10000
+        },
+        "orchestration": {
+          "mode": "SEQUENTIAL",
+          "priority": 2,
+          "slaHours": 2,
+          "escalation": {
+            "after": "PT2H",
+            "escalateTo": "OPS_TEAM",
+            "notify": true
+          }
+        }
+      }
+    ],
+    "slaManagement": {
+      "globalTimeout": "PT24H",
+      "breachAction": "ESCALATE",
+      "notifyOnBreach": true
+    }
+  },
+  "decisionTables": [
+    {
+      "name": "Document Approval Rules",
+      "description": "Determines approval requirements based on document type, verification score, and agent outputs.",
+      "inputs": [
+        {
+          "name": "documentType",
+          "type": "string",
+          "expression": "$.entityMetadata.documentType",
+          "required": true
+        },
+        {
+          "name": "customerType",
+          "type": "string",
+          "expression": "$.entityMetadata.customerType",
+          "required": true
+        },
+        {
+          "name": "verificationScore",
+          "type": "number",
+          "expression": "$.entityMetadata.verificationScore",
+          "required": true
+        },
+        {
+          "name": "highRiskCountry",
+          "type": "boolean",
+          "expression": "$.entityMetadata.highRiskCountry"
+        },
+        {
+          "name": "agentFraudScore",
+          "type": "number",
+          "expression": "$.agentOutputs.kyc-fraud-agent.fraudScore"
+        },
+        {
+          "name": "ocrTextValid",
+          "type": "boolean",
+          "expression": "$.agentOutputs.document-ocr-agent.textValid"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "approvalRequired",
+          "type": "boolean"
+        },
+        {
+          "name": "approverRoles",
+          "type": "array"
+        },
+        {
+          "name": "approvalCount",
+          "type": "number"
+        },
+        {
+          "name": "slaHours",
+          "type": "number"
+        }
+      ],
+      "rules": [
+        {
+          "ruleId": "AUTO_APPROVE_CLEAN_DOC",
+          "priority": 100,
+          "conditions": {
+            "verificationScore": ">= 90",
+            "agentFraudScore": "< 10",
+            "ocrTextValid": "true",
+            "highRiskCountry": "false"
+          },
+          "outputs": {
+            "approvalRequired": false,
+            "approverRoles": [],
+            "approvalCount": 0,
+            "slaHours": 0
+          },
+          "description": "Auto-approve high-confidence, low-fraud, valid OCR documents from low-risk countries."
+        },
+        {
+          "ruleId": "SINGLE_APPROVAL_MEDIUM_SCORE",
+          "priority": 80,
+          "conditions": {
+            "verificationScore": ">= 70 && < 90",
+            "agentFraudScore": "< 30"
+          },
+          "outputs": {
+            "approvalRequired": true,
+            "approverRoles": [
+              "COMPLIANCE_OFFICER"
+            ],
+            "approvalCount": 1,
+            "slaHours": 24
+          },
+          "description": "Single compliance approval for medium-confidence, low-fraud documents."
+        },
+        {
+          "ruleId": "DUAL_APPROVAL_HIGH_RISK",
+          "priority": 90,
+          "conditions": {
+            "agentFraudScore": ">= 30",
+            "highRiskCountry": "true"
+          },
+          "outputs": {
+            "approvalRequired": true,
+            "approverRoles": [
+              "SENIOR_COMPLIANCE_OFFICER",
+              "AML_SPECIALIST"
+            ],
+            "approvalCount": 2,
+            "slaHours": 72
+          },
+          "description": "Dual approval for high-fraud or high-risk country documents."
+        }
+      ],
+      "hitPolicy": "PRIORITY"
+    }
+  ],
+  "approverSelectionStrategy": {
+    "type": "LOAD_BALANCED",
+    "config": {
+      "metric": "PENDING_TASKS",
+      "fallbackStrategy": {
+        "type": "ROUND_ROBIN"
+      }
+    }
+  },
+  "escalationRules": [
+    {
+      "escalationAfter": "PT18H",
+      "escalateToRole": "SENIOR_COMPLIANCE_OFFICER",
+      "notifyOriginalAssignee": true
+    }
+  ],
+  "callbackHandlers": {
+    "onApprove": "com.bank.product.workflow.handlers.DocumentApprovalHandler",
+    "onReject": "com.bank.product.workflow.handlers.DocumentRejectionHandler",
+    "onValidate": "com.bank.product.workflow.handlers.DocumentValidationHandler"
+  },
+  "validationRules": {
+    "requiredMetadataFields": [
+      "documentType",
+      "customerType",
+      "verificationScore"
+    ],
+    "fieldValidations": {
+      "verificationScore": ">= 0 && <= 100"
+    }
+  },
+  "tags": [
+    "kyc",
+    "document",
+    "onboarding",
+    "agentic",
+    "sla"
+  ],
+  "createdAt": "2025-09-30T12:00:00Z",
+  "createdBy": "system"
+}

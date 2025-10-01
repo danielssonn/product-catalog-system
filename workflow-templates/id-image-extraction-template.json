@@ -1,0 +1,193 @@
+{
+    "templateId": "ID_IMAGE_EXTRACTION_V1",
+    "templateVersion": "1.0.0",
+    "name": "ID Image Extraction and Entity Analysis",
+    "description": "Workflow to collect ID images, process with AI agent, and extract all relevant entity and related party details.",
+    "entityType": "ID_DOCUMENT_ANALYSIS",
+    "active": true,
+    "agentConfig": {
+        "enableAgents": true,
+        "agents": [
+            {
+                "agentId": "id-image-processor",
+                "type": "CUSTOM",
+                "config": {
+                    "endpoint": "http://ai-doc-service:8097",
+                    "tools": [
+                        "extract_text_from_image",
+                        "analyze_document_structure",
+                        "distill_entity_details",
+                        "extract_related_parties"
+                    ],
+                    "timeout": 30000
+                },
+                "orchestration": {
+                    "mode": "SEQUENTIAL",
+                    "priority": 1,
+                    "slaHours": 4,
+                    "escalation": {
+                        "after": "PT4H",
+                        "escalateTo": "OPS_TEAM",
+                        "notify": true
+                    }
+                }
+            }
+        ],
+        "slaManagement": {
+            "globalTimeout": "PT12H",
+            "breachAction": "ESCALATE",
+            "notifyOnBreach": true
+        }
+    },
+    "decisionTables": [
+        {
+            "name": "ID Document Analysis Rules",
+            "description": "Evaluates extracted details and determines next steps.",
+            "inputs": [
+                {
+                    "name": "documentType",
+                    "type": "string",
+                    "expression": "$.entityMetadata.documentType",
+                    "required": true
+                },
+                {
+                    "name": "imageQuality",
+                    "type": "number",
+                    "expression": "$.agentOutputs.id-image-processor.imageQualityScore"
+                },
+                {
+                    "name": "entityDetailsExtracted",
+                    "type": "boolean",
+                    "expression": "$.agentOutputs.id-image-processor.entityDetailsExtracted"
+                },
+                {
+                    "name": "relatedPartiesCount",
+                    "type": "number",
+                    "expression": "$.agentOutputs.id-image-processor.relatedPartiesCount"
+                },
+                {
+                    "name": "missingFields",
+                    "type": "array",
+                    "expression": "$.agentOutputs.id-image-processor.missingFields"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "approvalRequired",
+                    "type": "boolean"
+                },
+                {
+                    "name": "approverRoles",
+                    "type": "array"
+                },
+                {
+                    "name": "approvalCount",
+                    "type": "number"
+                },
+                {
+                    "name": "slaHours",
+                    "type": "number"
+                },
+                {
+                    "name": "escalateReason",
+                    "type": "string"
+                }
+            ],
+            "rules": [
+                {
+                    "ruleId": "AUTO_APPROVE_CLEAN_EXTRACTION",
+                    "priority": 100,
+                    "conditions": {
+                        "imageQuality": ">= 85",
+                        "entityDetailsExtracted": "true",
+                        "relatedPartiesCount": ">= 1",
+                        "missingFields": "length == 0"
+                    },
+                    "outputs": {
+                        "approvalRequired": false,
+                        "approverRoles": [],
+                        "approvalCount": 0,
+                        "slaHours": 0,
+                        "escalateReason": ""
+                    },
+                    "description": "Auto-approve if image is high quality, all details and related parties are extracted, and no fields are missing."
+                },
+                {
+                    "ruleId": "ESCALATE_MISSING_FIELDS",
+                    "priority": 90,
+                    "conditions": {
+                        "missingFields": "length > 0"
+                    },
+                    "outputs": {
+                        "approvalRequired": true,
+                        "approverRoles": [
+                            "DOCUMENT_REVIEWER"
+                        ],
+                        "approvalCount": 1,
+                        "slaHours": 8,
+                        "escalateReason": "Missing required fields in extraction."
+                    },
+                    "description": "Escalate to reviewer if any required fields are missing."
+                },
+                {
+                    "ruleId": "ESCALATE_POOR_IMAGE_QUALITY",
+                    "priority": 80,
+                    "conditions": {
+                        "imageQuality": "< 60"
+                    },
+                    "outputs": {
+                        "approvalRequired": true,
+                        "approverRoles": [
+                            "OPS_TEAM"
+                        ],
+                        "approvalCount": 1,
+                        "slaHours": 4,
+                        "escalateReason": "Image quality too low for reliable extraction."
+                    },
+                    "description": "Escalate to operations if image quality is poor."
+                }
+            ],
+            "hitPolicy": "PRIORITY"
+        }
+    ],
+    "approverSelectionStrategy": {
+        "type": "ROLE_BASED",
+        "config": {
+            "loadBalancing": "ROUND_ROBIN",
+            "fallbackStrategy": "ESCALATE_TO_MANAGER"
+        }
+    },
+    "escalationRules": [
+        {
+            "escalationAfter": "PT6H",
+            "escalateToRole": "OPS_TEAM",
+            "notifyOriginalAssignee": true,
+            "reasonTemplate": "SLA breach: escalation to OPS_TEAM."
+        }
+    ],
+    "callbackHandlers": {
+        "onApprove": "com.bank.product.workflow.handlers.IDImageApproveHandler",
+        "onReject": "com.bank.product.workflow.handlers.IDImageRejectHandler",
+        "onValidate": "com.bank.product.workflow.handlers.IDImageValidateHandler"
+    },
+    "validationRules": {
+        "requiredMetadataFields": [
+            "documentType",
+            "imageFile"
+        ],
+        "fieldValidations": {
+            "imageFile": "not null"
+        }
+    },
+    "tags": [
+        "id",
+        "image",
+        "extraction",
+        "entity",
+        "related-parties",
+        "agentic",
+        "sla"
+    ],
+    "createdAt": "2025-09-30T12:00:00Z",
+    "createdBy": "system"
+}

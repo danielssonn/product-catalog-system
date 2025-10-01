@@ -1,0 +1,140 @@
+{
+    "templateId": "GENERIC_MAKER_CHECKER_V1",
+    "templateVersion": "1.0.0",
+    "name": "Generic Maker Checker Workflow",
+    "description": "A generic workflow template for maker-checker approval pattern, supporting any entity type.",
+    "entityType": "GENERIC_ENTITY",
+    "active": true,
+    "agentConfig": {
+        "enableAgents": false
+    },
+    "decisionTables": [
+        {
+            "name": "Maker Checker Rules",
+            "description": "Standard rules for maker-checker approval.",
+            "inputs": [
+                {
+                    "name": "makerUserId",
+                    "type": "string",
+                    "expression": "$.entityMetadata.makerUserId",
+                    "required": true
+                },
+                {
+                    "name": "checkerUserId",
+                    "type": "string",
+                    "expression": "$.entityMetadata.checkerUserId",
+                    "required": true
+                },
+                {
+                    "name": "entityType",
+                    "type": "string",
+                    "expression": "$.entityMetadata.entityType",
+                    "required": true
+                },
+                {
+                    "name": "changeType",
+                    "type": "string",
+                    "expression": "$.entityMetadata.changeType",
+                    "required": true
+                },
+                {
+                    "name": "changeAmount",
+                    "type": "number",
+                    "expression": "$.entityMetadata.changeAmount"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "approvalRequired",
+                    "type": "boolean"
+                },
+                {
+                    "name": "approverRoles",
+                    "type": "array"
+                },
+                {
+                    "name": "approvalCount",
+                    "type": "number"
+                },
+                {
+                    "name": "slaHours",
+                    "type": "number"
+                }
+            ],
+            "rules": [
+                {
+                    "ruleId": "MAKER_CHECKER_STANDARD",
+                    "priority": 100,
+                    "conditions": {
+                        "makerCheckerValid": "makerUserId != null && checkerUserId != null && makerUserId != checkerUserId"
+                    },
+                    "outputs": {
+                        "approvalRequired": true,
+                        "approverRoles": [
+                            "CHECKER"
+                        ],
+                        "approvalCount": 1,
+                        "slaHours": 24
+                    },
+                    "description": "Standard maker-checker: checker must be different from maker."
+                },
+                {
+                    "ruleId": "ESCALATE_LARGE_CHANGE",
+                    "priority": 90,
+                    "conditions": {
+                        "changeAmount": "> 100000"
+                    },
+                    "outputs": {
+                        "approvalRequired": true,
+                        "approverRoles": [
+                            "SENIOR_CHECKER"
+                        ],
+                        "approvalCount": 1,
+                        "slaHours": 12
+                    },
+                    "description": "Escalate to senior checker for large changes."
+                }
+            ],
+            "hitPolicy": "PRIORITY"
+        }
+    ],
+    "approverSelectionStrategy": {
+        "type": "ROLE_BASED",
+        "config": {
+            "loadBalancing": "ROUND_ROBIN",
+            "fallbackStrategy": "ESCALATE_TO_MANAGER"
+        }
+    },
+    "escalationRules": [
+        {
+            "escalationAfter": "PT24H",
+            "escalateToRole": "SENIOR_CHECKER",
+            "notifyOriginalAssignee": true,
+            "reasonTemplate": "SLA breach: escalation to senior checker."
+        }
+    ],
+    "callbackHandlers": {
+        "onApprove": "com.bank.product.workflow.handlers.GenericApproveHandler",
+        "onReject": "com.bank.product.workflow.handlers.GenericRejectHandler",
+        "onValidate": "com.bank.product.workflow.handlers.GenericValidateHandler"
+    },
+    "validationRules": {
+        "requiredMetadataFields": [
+            "makerUserId",
+            "checkerUserId",
+            "entityType",
+            "changeType"
+        ],
+        "fieldValidations": {
+            "makerCheckerValid": "makerUserId != null && checkerUserId != null && makerUserId != checkerUserId"
+        }
+    },
+    "tags": [
+        "maker-checker",
+        "approval",
+        "generic",
+        "sla"
+    ],
+    "createdAt": "2025-09-30T12:00:00Z",
+    "createdBy": "system"
+}
