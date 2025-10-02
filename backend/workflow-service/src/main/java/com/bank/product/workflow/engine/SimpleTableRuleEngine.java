@@ -20,6 +20,11 @@ public class SimpleTableRuleEngine implements RuleEngine {
 
     private final ConditionEvaluator conditionEvaluator;
 
+    /**
+     * Record for tracking evaluation results with matched rule IDs
+     */
+    private record EvaluationResult(Map<String, Object> outputs, List<String> matchedRuleIds) {}
+
     @Override
     public ComputedApprovalPlan evaluate(WorkflowTemplate template, Map<String, Object> entityMetadata) {
         log.debug("Evaluating template '{}' against metadata: {}", template.getTemplateId(), entityMetadata);
@@ -31,14 +36,16 @@ public class SimpleTableRuleEngine implements RuleEngine {
 
         // Aggregate results from all decision tables
         Map<String, Object> aggregatedOutputs = new HashMap<>();
+        List<String> matchedRuleIds = new ArrayList<>();
 
         for (DecisionTable table : template.getDecisionTables()) {
-            Map<String, Object> tableOutputs = evaluateDecisionTable(table, entityMetadata);
-            aggregatedOutputs.putAll(tableOutputs);
+            EvaluationResult result = evaluateDecisionTableWithTracking(table, entityMetadata);
+            aggregatedOutputs.putAll(result.outputs());
+            matchedRuleIds.addAll(result.matchedRuleIds());
         }
 
         // Build approval plan from aggregated outputs
-        return buildApprovalPlan(aggregatedOutputs, template);
+        return buildApprovalPlan(aggregatedOutputs, template, matchedRuleIds);
     }
 
     @Override
@@ -61,6 +68,13 @@ public class SimpleTableRuleEngine implements RuleEngine {
      * Evaluate a single decision table
      */
     private Map<String, Object> evaluateDecisionTable(DecisionTable table, Map<String, Object> entityMetadata) {
+        return evaluateDecisionTableWithTracking(table, entityMetadata).outputs();
+    }
+
+    /**
+     * Evaluate a single decision table with tracking of matched rules
+     */
+    private EvaluationResult evaluateDecisionTableWithTracking(DecisionTable table, Map<String, Object> entityMetadata) {
         log.debug("Evaluating decision table: {}", table.getName());
 
         HitPolicy hitPolicy = table.getHitPolicy() != null ? table.getHitPolicy() : HitPolicy.FIRST;
@@ -75,10 +89,10 @@ public class SimpleTableRuleEngine implements RuleEngine {
 
         // Evaluate rules based on hit policy
         return switch (hitPolicy) {
-            case FIRST -> evaluateFirstHitPolicy(sortedRules, entityMetadata, table);
-            case ALL -> evaluateAllHitPolicy(sortedRules, entityMetadata, table);
-            case PRIORITY -> evaluatePriorityHitPolicy(sortedRules, entityMetadata, table);
-            case COLLECT -> evaluateCollectHitPolicy(sortedRules, entityMetadata, table);
+            case FIRST -> evaluateFirstHitPolicyWithTracking(sortedRules, entityMetadata, table);
+            case ALL -> evaluateAllHitPolicyWithTracking(sortedRules, entityMetadata, table);
+            case PRIORITY -> evaluatePriorityHitPolicyWithTracking(sortedRules, entityMetadata, table);
+            case COLLECT -> evaluateCollectHitPolicyWithTracking(sortedRules, entityMetadata, table);
         };
     }
 
@@ -167,6 +181,94 @@ public class SimpleTableRuleEngine implements RuleEngine {
     }
 
     /**
+     * FIRST hit policy with tracking: Return outputs of first matching rule
+     */
+    private EvaluationResult evaluateFirstHitPolicyWithTracking(List<DecisionRule> rules,
+                                                                  Map<String, Object> entityMetadata,
+                                                                  DecisionTable table) {
+        for (DecisionRule rule : rules) {
+            if (ruleMatches(rule, entityMetadata)) {
+                log.debug("Rule '{}' matched (FIRST policy)", rule.getRuleId());
+                return new EvaluationResult(rule.getOutputs(), List.of(rule.getRuleId()));
+            }
+        }
+
+        // No rules matched - use default rule or default values
+        return new EvaluationResult(getDefaultOutputs(table), List.of());
+    }
+
+    /**
+     * ALL hit policy with tracking: Merge outputs from all matching rules
+     */
+    private EvaluationResult evaluateAllHitPolicyWithTracking(List<DecisionRule> rules,
+                                                                Map<String, Object> entityMetadata,
+                                                                DecisionTable table) {
+        Map<String, Object> mergedOutputs = new HashMap<>();
+        List<String> matchedRuleIds = new ArrayList<>();
+
+        for (DecisionRule rule : rules) {
+            if (ruleMatches(rule, entityMetadata)) {
+                log.debug("Rule '{}' matched (ALL policy)", rule.getRuleId());
+                mergedOutputs.putAll(rule.getOutputs());
+                matchedRuleIds.add(rule.getRuleId());
+            }
+        }
+
+        if (mergedOutputs.isEmpty()) {
+            return new EvaluationResult(getDefaultOutputs(table), List.of());
+        }
+
+        return new EvaluationResult(mergedOutputs, matchedRuleIds);
+    }
+
+    /**
+     * PRIORITY hit policy with tracking: Return outputs of highest priority matching rule
+     */
+    private EvaluationResult evaluatePriorityHitPolicyWithTracking(List<DecisionRule> rules,
+                                                                     Map<String, Object> entityMetadata,
+                                                                     DecisionTable table) {
+        // Rules already sorted by priority
+        for (DecisionRule rule : rules) {
+            if (ruleMatches(rule, entityMetadata)) {
+                log.debug("Rule '{}' matched with priority {} (PRIORITY policy)",
+                         rule.getRuleId(), rule.getPriority());
+                return new EvaluationResult(rule.getOutputs(), List.of(rule.getRuleId()));
+            }
+        }
+
+        return new EvaluationResult(getDefaultOutputs(table), List.of());
+    }
+
+    /**
+     * COLLECT hit policy with tracking: Collect all outputs from matching rules into lists
+     */
+    private EvaluationResult evaluateCollectHitPolicyWithTracking(List<DecisionRule> rules,
+                                                                    Map<String, Object> entityMetadata,
+                                                                    DecisionTable table) {
+        Map<String, List<Object>> collectedOutputs = new HashMap<>();
+        List<String> matchedRuleIds = new ArrayList<>();
+
+        for (DecisionRule rule : rules) {
+            if (ruleMatches(rule, entityMetadata)) {
+                log.debug("Rule '{}' matched (COLLECT policy)", rule.getRuleId());
+                matchedRuleIds.add(rule.getRuleId());
+
+                for (Map.Entry<String, Object> entry : rule.getOutputs().entrySet()) {
+                    collectedOutputs.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
+                            .add(entry.getValue());
+                }
+            }
+        }
+
+        if (collectedOutputs.isEmpty()) {
+            return new EvaluationResult(getDefaultOutputs(table), List.of());
+        }
+
+        // Convert to regular map
+        return new EvaluationResult(new HashMap<>(collectedOutputs), matchedRuleIds);
+    }
+
+    /**
      * Check if a rule matches the entity metadata
      */
     private boolean ruleMatches(DecisionRule rule, Map<String, Object> entityMetadata) {
@@ -220,7 +322,9 @@ public class SimpleTableRuleEngine implements RuleEngine {
     /**
      * Build approval plan from decision table outputs
      */
-    private ComputedApprovalPlan buildApprovalPlan(Map<String, Object> outputs, WorkflowTemplate template) {
+    private ComputedApprovalPlan buildApprovalPlan(Map<String, Object> outputs,
+                                                    WorkflowTemplate template,
+                                                    List<String> matchedRuleIds) {
         ComputedApprovalPlan.ComputedApprovalPlanBuilder builder = ComputedApprovalPlan.builder();
 
         // Extract standard fields
@@ -244,6 +348,9 @@ public class SimpleTableRuleEngine implements RuleEngine {
         if (template.getEscalationRules() != null) {
             builder.escalationRules(template.getEscalationRules());
         }
+
+        // Set matched rule IDs
+        builder.matchedRules(matchedRuleIds);
 
         // Store all outputs as additional config
         builder.additionalConfig(outputs);

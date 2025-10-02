@@ -53,6 +53,11 @@ public class ComputedApprovalPlan {
     private List<EscalationRule> escalationRules;
 
     /**
+     * IDs of rules that were matched during evaluation
+     */
+    private List<String> matchedRules;
+
+    /**
      * Additional configuration from rules
      */
     private Map<String, Object> additionalConfig;
