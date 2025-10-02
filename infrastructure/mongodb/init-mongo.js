@@ -349,13 +349,13 @@ db.users.createIndex({ "enabled": 1 });
 print('Users indexes created');
 
 // Insert sample users
-// Passwords are BCrypt encrypted:
-// admin123 -> $2b$12$oOqJDPOcNgzRiC7k1mZhDOLtc1fmYyN6/A5jteJUunr2J5MoETG3C
-// catalog123 -> $2b$12$TsbLQqnpJTYu3noHg.rA2um4jrhEoMzt3NmCReOpxgn7rrd2m5rtG
+// Passwords are BCrypt encrypted with $2a$ prefix (Java BCryptPasswordEncoder compatible):
+// admin123 -> $2a$10$5CtRTM8hzH5taYbBM4jHbuDOmeHCFSvbHvZOHcnX7rKHK0QDf3G8m
+// catalog123 -> $2a$10$/pT2VGBxsY6d7bQ5nB.6dOA3Rc7zkge2fu.q310NiHbNooMz7kT5q
 db.users.insertMany([
     {
         username: "admin",
-        password: "$2b$12$oOqJDPOcNgzRiC7k1mZhDOLtc1fmYyN6/A5jteJUunr2J5MoETG3C",
+        password: "$2a$10$5CtRTM8hzH5taYbBM4jHbuDOmeHCFSvbHvZOHcnX7rKHK0QDf3G8m",  // admin123 - Java BCrypt compatible
         email: "admin@example.com",
         fullName: "System Administrator",
         roles: ["ROLE_ADMIN", "ROLE_USER"],
@@ -370,7 +370,7 @@ db.users.insertMany([
     },
     {
         username: "catalog-user",
-        password: "$2b$12$TsbLQqnpJTYu3noHg.rA2um4jrhEoMzt3NmCReOpxgn7rrd2m5rtG",
+        password: "$2a$10$/pT2VGBxsY6d7bQ5nB.6dOA3Rc7zkge2fu.q310NiHbNooMz7kT5q",  // catalog123 - Java BCrypt compatible
         email: "catalog-user@example.com",
         fullName: "Catalog User",
         roles: ["ROLE_USER"],
@@ -386,4 +386,94 @@ db.users.insertMany([
 ]);
 
 print('Sample users inserted');
+
+// ============================================
+// WORKFLOW TEMPLATES
+// ============================================
+
+// Create workflow_templates collection
+db.createCollection('workflow_templates');
+
+// Workflow template indexes
+db.workflow_templates.createIndex({ "templateId": 1 }, { unique: true });
+db.workflow_templates.createIndex({ "entityType": 1, "active": 1 });
+print('Workflow template indexes created');
+
+// Insert Solution Configuration workflow template
+db.workflow_templates.insertOne({
+    templateId: "SOLUTION_CONFIG_V1",
+    entityType: "SOLUTION_CONFIGURATION",
+    version: "1",
+    name: "Solution Configuration Workflow",
+    description: "Approval workflow for solution configuration",
+    active: true,
+    decisionTables: [{
+        name: "Solution Approval Rules",
+        hitPolicy: "FIRST",
+        inputs: [
+            { name: "solutionType", type: "string" },
+            { name: "pricingVariance", type: "number" },
+            { name: "riskLevel", type: "string" }
+        ],
+        outputs: [
+            { name: "approvalRequired", type: "boolean" },
+            { name: "approverRoles", type: "array" },
+            { name: "approvalCount", type: "number" },
+            { name: "isSequential", type: "boolean" },
+            { name: "slaHours", type: "number" }
+        ],
+        rules: [
+            {
+                ruleId: "AUTO_APPROVE_LOW_RISK",
+                priority: 1,
+                conditions: {
+                    solutionType: "CHECKING|SAVINGS",
+                    pricingVariance: "< 5",
+                    riskLevel: "LOW"
+                },
+                outputs: {
+                    approvalRequired: false
+                }
+            },
+            {
+                ruleId: "SINGLE_APPROVAL_MEDIUM_VARIANCE",
+                priority: 2,
+                conditions: {
+                    pricingVariance: ">= 5 && <= 15",
+                    riskLevel: "LOW|MEDIUM"
+                },
+                outputs: {
+                    approvalRequired: true,
+                    approverRoles: ["PRODUCT_MANAGER"],
+                    approvalCount: 1,
+                    isSequential: false,
+                    slaHours: 24
+                }
+            },
+            {
+                ruleId: "DUAL_APPROVAL_HIGH_VARIANCE",
+                priority: 3,
+                conditions: {
+                    pricingVariance: "> 15",
+                    riskLevel: "MEDIUM|HIGH"
+                },
+                outputs: {
+                    approvalRequired: true,
+                    approverRoles: ["PRODUCT_MANAGER", "RISK_MANAGER"],
+                    approvalCount: 2,
+                    isSequential: false,
+                    slaHours: 48
+                }
+            }
+        ]
+    }],
+    callbackHandlers: {
+        onApprove: "SolutionConfigApprovalHandler",
+        onReject: "SolutionConfigRejectionHandler"
+    },
+    createdBy: "system",
+    updatedBy: "system"
+});
+
+print('Workflow template inserted');
 print('MongoDB initialization completed successfully!');

@@ -21,7 +21,7 @@ public class User {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, name = "username_1")
     private String username;
 
     private String password; // Encrypted password
