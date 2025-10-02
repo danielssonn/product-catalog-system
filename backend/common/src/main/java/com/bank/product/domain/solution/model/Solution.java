@@ -38,6 +38,10 @@ public class Solution {
     @Indexed
     private String configurationId;
 
+    // Workflow tracking
+    @Indexed
+    private String workflowId;
+
     private String name;
 
     private String description;

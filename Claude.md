@@ -1,5 +1,355 @@
 # Product Catalog System
 
+---
+
+## ⚠️ IMPORTANT: MANDATORY STANDARDS FOR ALL NEW SERVICES
+
+**ALL new microservices MUST implement the following standards. These are non-negotiable production requirements:**
+
+### 1. Performance & Resiliency Standards ✅
+
+#### Connection Pooling (Required)
+```java
+// RestTemplateConfig.java or WebClientConfig.java
+PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+connectionManager.setMaxTotal(100);           // Max total connections
+connectionManager.setDefaultMaxPerRoute(20);  // Max connections per route
+
+RequestConfig requestConfig = RequestConfig.custom()
+    .setConnectTimeout(Timeout.ofMilliseconds(2000))       // Connection timeout: 2s
+    .setResponseTimeout(Timeout.ofMilliseconds(5000))      // Socket timeout: 5s
+    .setConnectionRequestTimeout(Timeout.ofMilliseconds(1000)) // Pool timeout: 1s
+    .build();
+```
+
+**Dependencies:**
+```xml
+<dependency>
+    <groupId>org.apache.httpcomponents.client5</groupId>
+    <artifactId>httpclient5</artifactId>
+</dependency>
+```
+
+#### Circuit Breaker (Required)
+```java
+@CircuitBreaker(name = "target-service-name", fallbackMethod = "fallbackMethodName")
+public ResponseType callExternalService(RequestType request) {
+    // External service call
+}
+
+private ResponseType fallbackMethodName(RequestType request, Exception e) {
+    log.error("Circuit breaker activated: {}", e.getMessage());
+    // Return graceful degradation response
+}
+```
+
+**Configuration:** `application-resilience4j.yml`
+```yaml
+resilience4j:
+  circuitbreaker:
+    instances:
+      target-service-name:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+```
+
+**Dependencies:**
+```xml
+<dependency>
+    <groupId>io.github.resilience4j</groupId>
+    <artifactId>resilience4j-spring-boot3</artifactId>
+    <version>2.2.0</version>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+```
+
+#### Async Processing (Required for long-running operations)
+```java
+// AsyncConfig.java
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+    @Bean(name = "asyncExecutor")
+    public Executor asyncExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(50);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix("async-");
+        executor.initialize();
+        return executor;
+    }
+}
+```
+
+#### Idempotency Protection (Required for state-changing operations)
+```java
+// CacheConfig.java
+@Bean
+public Cache<String, Boolean> idempotencyCache() {
+    return Caffeine.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(24, TimeUnit.HOURS)
+            .build();
+}
+```
+
+**Dependencies:**
+```xml
+<dependency>
+    <groupId>com.github.ben-manes.caffeine</groupId>
+    <artifactId>caffeine</artifactId>
+</dependency>
+```
+
+### 2. Security Standards ✅
+
+#### Authentication (Required)
+- **HTTP Basic Authentication** for service-to-service calls
+- **MongoDB-backed user store** with BCrypt password encoding
+- **Role-based access control (RBAC)**: ROLE_ADMIN, ROLE_USER
+
+```java
+// SecurityConfig.java
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http
+        .csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/actuator/health").permitAll()
+            .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+            .requestMatchers("/api/v1/**").hasAnyRole("USER", "ADMIN")
+            .anyRequest().authenticated()
+        )
+        .httpBasic(Customizer.withDefaults());
+    return http.build();
+}
+```
+
+#### Credentials Externalization (Required)
+**All credentials MUST use environment variables with defaults for development:**
+
+```yaml
+spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGODB_USERNAME:-admin}:${MONGODB_PASSWORD:-admin123}@...
+
+  security:
+    user:
+      name: ${SECURITY_USERNAME:-admin}
+      password: ${SECURITY_PASSWORD:-admin123}
+```
+
+**Never hardcode credentials in:**
+- Configuration files (application.yml)
+- Source code
+- Docker images
+- Git repository
+
+### 3. API Versioning Standards ✅
+
+#### URL-based Versioning (Required)
+```java
+@RestController
+@RequestMapping("/api/v1/resource-name")
+public class ResourceController {
+    // All endpoints start with /api/v{version}/
+}
+```
+
+#### Backward Compatibility (Required)
+- **Never break existing API contracts**
+- **Deprecate before removal** (minimum 6 months)
+- **Version bump** for breaking changes (v1 → v2)
+
+#### Configuration:
+```yaml
+app:
+  versioning:
+    supported-api-versions: "1.0,2.0"
+    default-api-version: "1.0"
+```
+
+### 4. Observability Standards ✅
+
+#### Actuator Endpoints (Required)
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+```
+
+#### Logging Standards (Required)
+```java
+@Slf4j
+public class ServiceClass {
+    // Always use SLF4J with Lombok
+    log.info("Action performed: entity={}, id={}", entityType, entityId);
+    log.error("Operation failed: entity={}, error={}", entityId, e.getMessage(), e);
+}
+```
+
+**Log Levels:**
+- `ERROR`: Failures requiring immediate attention
+- `WARN`: Degraded operation, circuit breaker activations
+- `INFO`: Business events, state changes
+- `DEBUG`: Detailed flow for troubleshooting
+
+### 5. Multi-tenancy Standards ✅
+
+#### Automatic Tenant Isolation (Required)
+**Use the abstracted tenant isolation pattern** - no manual tenant checks needed!
+
+See **[TENANT_ISOLATION.md](TENANT_ISOLATION.md)** for complete implementation guide.
+
+**Quick Start:**
+```java
+// 1. Extend TenantAwareRepository instead of MongoRepository
+public interface SolutionRepository extends TenantAwareRepository<Solution, String> {
+    // Automatically inherits: findByIdTenantAware(), deleteByIdTenantAware(), etc.
+}
+
+// 2. Use tenant-aware methods in services
+public Solution getSolution(String solutionId) {
+    return repository.findByIdTenantAware(solutionId)  // Auto-filtered by tenant
+        .orElseThrow(() -> new RuntimeException("Not found"));
+}
+
+// 3. X-Tenant-ID header automatically extracted by TenantInterceptor
+@GetMapping("/{id}")
+public ResponseEntity<Resource> getResource(@PathVariable String id) {
+    // No @RequestHeader("X-Tenant-ID") needed - handled by interceptor
+    return ResponseEntity.ok(service.getResource(id));
+}
+```
+
+#### Data Isolation (Automatic)
+- ✅ **TenantInterceptor** extracts `X-Tenant-ID` header from all requests
+- ✅ **TenantContext** stores tenant in thread-local storage
+- ✅ **TenantAwareRepository** automatically filters all queries by current tenant
+- ✅ **MongoDB indexes** MUST include tenantId for performance
+
+```java
+@CompoundIndex(name = "tenant_entity_idx", def = "{'tenantId': 1, 'entityId': 1}")
+```
+
+#### Implementation Files (Copy to New Services)
+- `TenantContext.java` - Thread-local tenant storage
+- `TenantInterceptor.java` - HTTP request interceptor
+- `WebMvcConfig.java` - Interceptor registration
+- `TenantAwareRepository.java` - Base repository with auto-filtering
+
+**See:** [TENANT_ISOLATION_SUMMARY.md](TENANT_ISOLATION_SUMMARY.md) for architecture and test results.
+
+### 6. Testing Standards ✅
+
+#### Required Test Types
+1. **Unit Tests**: All business logic
+2. **Integration Tests**: Database, external service calls
+3. **Performance Tests**: Response time, throughput
+4. **Idempotency Tests**: Duplicate request handling
+5. **Circuit Breaker Tests**: Failure scenarios
+
+#### Test Script Template
+```bash
+#!/bin/bash
+echo "Test 1: Happy path"
+curl -u admin:admin123 http://localhost:PORT/api/v1/resource -H "X-Tenant-ID: tenant-test"
+
+echo "Test 2: Idempotency"
+curl -u admin:admin123 -X POST http://localhost:PORT/api/v1/resource \
+  -H "X-Idempotency-Key: test-key-123" \
+  -d '{"data":"value"}'
+
+echo "Test 3: Circuit breaker"
+docker-compose stop target-service
+curl -u admin:admin123 http://localhost:PORT/api/v1/resource
+docker-compose up -d target-service
+```
+
+### 7. Docker Standards ✅
+
+#### Multi-stage Dockerfile (Required)
+```dockerfile
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+#### Health Checks (Required)
+```yaml
+# docker-compose.yml
+services:
+  service-name:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+```
+
+### 8. Documentation Standards ✅
+
+#### Required Documentation
+1. **API Documentation**: OpenAPI/Swagger at `/swagger-ui.html`
+2. **README.md**: Service purpose, endpoints, dependencies
+3. **DEPLOYMENT.md**: Docker setup, environment variables
+4. **Test scripts**: `test-{feature}.sh` for each major feature
+
+---
+
+## Reference Implementation
+
+**Product Service** ([backend/product-service](backend/product-service)) implements all standards above:
+- ✅ Connection pooling with Apache HttpClient 5
+- ✅ Circuit breaker with Resilience4j
+- ✅ Async workflow submission with @Async
+- ✅ Idempotency protection with Caffeine cache
+- ✅ MongoDB-backed authentication with BCrypt
+- ✅ API versioning (/api/v1/)
+- ✅ Actuator endpoints for observability
+- ✅ **Automatic tenant isolation** with TenantContext + TenantInterceptor
+- ✅ Comprehensive test scripts
+
+## 📚 Related Documentation
+
+**Before creating a new service, review these documents:**
+
+1. **[STANDARDS_SUMMARY.md](STANDARDS_SUMMARY.md)** - Quick reference table of all mandatory standards
+2. **[NEW_SERVICE_CHECKLIST.md](NEW_SERVICE_CHECKLIST.md)** - Step-by-step checklist for new services
+3. **[PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md)** - Detailed implementation examples and test results
+4. **[SECURITY.md](SECURITY.md)** - Security guidelines and environment variable reference
+5. **[TENANT_ISOLATION.md](TENANT_ISOLATION.md)** - Complete tenant isolation implementation guide
+6. **[TENANT_ISOLATION_SUMMARY.md](TENANT_ISOLATION_SUMMARY.md)** - Tenant isolation architecture and test results
+
+**Test Scripts:**
+- [test-optimizations.sh](test-optimizations.sh) - Performance and connection pooling tests
+- [test-circuit-breaker.sh](test-circuit-breaker.sh) - Circuit breaker failure scenarios
+- [test-idempotency.sh](test-idempotency.sh) - Duplicate request handling
+- [test-tenant-isolation.sh](test-tenant-isolation.sh) - Multi-tenant isolation tests
+
+---
+
 ## Project Overview
 A microservices-based banking product catalog system that manages master product templates and tenant-specific product instances (solutions). The system enables multi-tenant banks to browse, configure, and deploy banking products from a centralized catalog.
 

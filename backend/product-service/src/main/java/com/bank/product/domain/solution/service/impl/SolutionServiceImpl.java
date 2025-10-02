@@ -32,7 +32,8 @@ public class SolutionServiceImpl implements SolutionService {
     @Override
     public Solution getSolutionById(String solutionId) {
         log.debug("Fetching solution by id: {}", solutionId);
-        return solutionRepository.findById(solutionId)
+        // Automatically filtered by current tenant from TenantContext
+        return solutionRepository.findByIdTenantAware(solutionId)
                 .orElseThrow(() -> new RuntimeException("Solution not found: " + solutionId));
     }
 
@@ -123,5 +124,57 @@ public class SolutionServiceImpl implements SolutionService {
         }
         solutionRepository.deleteByTenantIdAndSolutionId(tenantId, solutionId);
         log.info("Solution {} deleted successfully", solutionId);
+    }
+
+    @Override
+    @Transactional
+    public int activateSolution(String solutionId) {
+        log.info("Activating solution: {}", solutionId);
+        // Uses TenantContext if available, otherwise retrieves solution to get tenant
+        Solution solution = solutionRepository.findById(solutionId).orElse(null);
+        if (solution == null || solution.getStatus() == SolutionStatus.ACTIVE) {
+            return 0;
+        }
+
+        // Verify tenant context matches solution (if tenant context is set)
+        if (com.bank.product.security.TenantContext.isSet()) {
+            String currentTenant = com.bank.product.security.TenantContext.getCurrentTenant();
+            if (!currentTenant.equals(solution.getTenantId())) {
+                log.warn("Tenant mismatch: context={}, solution={}", currentTenant, solution.getTenantId());
+                return 0;
+            }
+        }
+
+        solution.setStatus(SolutionStatus.ACTIVE);
+        solution.setUpdatedAt(LocalDateTime.now());
+        solution.setUpdatedBy("system");
+        solutionRepository.save(solution);
+        return 1;
+    }
+
+    @Override
+    @Transactional
+    public int rejectSolution(String solutionId) {
+        log.info("Rejecting solution: {}", solutionId);
+        // Uses TenantContext if available, otherwise retrieves solution to get tenant
+        Solution solution = solutionRepository.findById(solutionId).orElse(null);
+        if (solution == null || solution.getStatus() == SolutionStatus.REJECTED) {
+            return 0;
+        }
+
+        // Verify tenant context matches solution (if tenant context is set)
+        if (com.bank.product.security.TenantContext.isSet()) {
+            String currentTenant = com.bank.product.security.TenantContext.getCurrentTenant();
+            if (!currentTenant.equals(solution.getTenantId())) {
+                log.warn("Tenant mismatch: context={}, solution={}", currentTenant, solution.getTenantId());
+                return 0;
+            }
+        }
+
+        solution.setStatus(SolutionStatus.REJECTED);
+        solution.setUpdatedAt(LocalDateTime.now());
+        solution.setUpdatedBy("system");
+        solutionRepository.save(solution);
+        return 1;
     }
 }
