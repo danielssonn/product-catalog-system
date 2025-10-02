@@ -1,13 +1,13 @@
 package com.bank.product.domain.solution.controller;
 
-import com.bank.product.client.WorkflowClient;
 import com.bank.product.client.dto.WorkflowSubmitRequest;
-import com.bank.product.client.dto.WorkflowSubmitResponse;
 import com.bank.product.domain.solution.dto.ConfigureSolutionRequest;
 import com.bank.product.domain.solution.dto.ConfigureSolutionResponse;
+import com.bank.product.domain.solution.service.AsyncWorkflowService;
 import com.bank.product.domain.solution.service.SolutionService;
 import com.bank.product.domain.solution.model.Solution;
 import com.bank.product.domain.solution.model.SolutionStatus;
+import com.github.benmanes.caffeine.cache.Cache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,7 +32,8 @@ import java.util.Map;
 public class SolutionController {
 
     private final SolutionService solutionService;
-    private final WorkflowClient workflowClient;
+    private final AsyncWorkflowService asyncWorkflowService;
+    private final Cache<String, Boolean> idempotencyCache;
 
     /**
      * Configure a new solution from catalog product with workflow approval
@@ -66,7 +67,7 @@ public class SolutionController {
         entityData.put("catalogProductId", request.getCatalogProductId());
         entityData.put("customPricing", request.getCustomFees());
 
-        // Submit workflow for approval
+        // Build workflow request
         WorkflowSubmitRequest workflowRequest = WorkflowSubmitRequest.builder()
                 .entityType("SOLUTION_CONFIGURATION")
                 .entityId(solution.getId())
@@ -78,57 +79,97 @@ public class SolutionController {
                 .priority(request.getPriority())
                 .build();
 
-        WorkflowSubmitResponse workflowResponse = workflowClient.submitWorkflow(workflowRequest);
+        // Submit workflow asynchronously (fire-and-forget)
+        asyncWorkflowService.submitWorkflowAsync(solution, workflowRequest)
+                .exceptionally(ex -> {
+                    log.error("Workflow submission failed for solution: {}", solution.getId(), ex);
+                    return null;
+                });
 
-        // Build response
+        // Return immediately with 202 Accepted
         ConfigureSolutionResponse response = ConfigureSolutionResponse.builder()
                 .solutionId(solution.getId())
                 .solutionName(solution.getName())
                 .status(solution.getStatus().name())
-                .workflowId(workflowResponse.getWorkflowId())
-                .workflowStatus(workflowResponse.getStatus())
-                .approvalRequired(workflowResponse.isApprovalRequired())
-                .requiredApprovals(workflowResponse.getRequiredApprovals())
-                .approverRoles(workflowResponse.getApproverRoles())
-                .sequential(workflowResponse.isSequential())
-                .slaHours(workflowResponse.getSlaHours())
-                .estimatedCompletion(workflowResponse.getEstimatedCompletion())
-                .message(workflowResponse.getMessage())
+                .workflowId(null) // Will be updated asynchronously
+                .workflowStatus("PENDING_SUBMISSION")
+                .message("Solution created. Workflow submission in progress. Check status via GET /api/v1/solutions/" + solution.getId())
                 .build();
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     /**
      * Activate solution (called by workflow callback)
+     * Idempotent - safe to call multiple times
      */
     @PutMapping("/{solutionId}/activate")
     public ResponseEntity<Void> activateSolution(
-            @PathVariable String solutionId) {
+            @PathVariable String solutionId,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+
+        // Check idempotency
+        if (idempotencyKey != null) {
+            Boolean alreadyProcessed = idempotencyCache.getIfPresent(idempotencyKey);
+            if (Boolean.TRUE.equals(alreadyProcessed)) {
+                log.info("Duplicate activation request (idempotency key: {}), returning success", idempotencyKey);
+                return ResponseEntity.ok().build();
+            }
+        }
 
         log.info("Activating solution: {}", solutionId);
-        // Get solution by MongoDB ID and update status
-        Solution solution = solutionService.getSolutionById(solutionId);
-        solution.setStatus(SolutionStatus.ACTIVE);
-        solution.setUpdatedAt(java.time.LocalDateTime.now());
-        solution.setUpdatedBy("system");
-        solutionService.saveSolution(solution);
-        return ResponseEntity.ok().build();
+
+        // Single optimized update query
+        int updated = solutionService.activateSolution(solutionId);
+
+        if (updated > 0) {
+            // Store idempotency key
+            if (idempotencyKey != null) {
+                idempotencyCache.put(idempotencyKey, true);
+            }
+            log.info("Solution {} activated successfully", solutionId);
+            return ResponseEntity.ok().build();
+        } else {
+            log.warn("Solution {} not found or already active", solutionId);
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**
      * Reject solution (called by workflow callback)
+     * Idempotent - safe to call multiple times
      */
     @PutMapping("/{solutionId}/reject")
     public ResponseEntity<Void> rejectSolution(
             @PathVariable String solutionId,
-            @RequestBody Map<String, String> request) {
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody(required = false) Map<String, String> request) {
+
+        // Check idempotency
+        if (idempotencyKey != null) {
+            Boolean alreadyProcessed = idempotencyCache.getIfPresent(idempotencyKey);
+            if (Boolean.TRUE.equals(alreadyProcessed)) {
+                log.info("Duplicate rejection request (idempotency key: {}), returning success", idempotencyKey);
+                return ResponseEntity.ok().build();
+            }
+        }
 
         log.info("Rejecting solution: {}", solutionId);
-        Solution solution = solutionService.getSolutionById(solutionId);
-        solutionService.updateSolutionStatus(
-                solution.getTenantId(), solutionId, SolutionStatus.REJECTED, "system");
-        return ResponseEntity.ok().build();
+
+        // Single optimized update query
+        int updated = solutionService.rejectSolution(solutionId);
+
+        if (updated > 0) {
+            // Store idempotency key
+            if (idempotencyKey != null) {
+                idempotencyCache.put(idempotencyKey, true);
+            }
+            log.info("Solution {} rejected successfully", solutionId);
+            return ResponseEntity.ok().build();
+        } else {
+            log.warn("Solution {} not found or already rejected", solutionId);
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/{solutionId}")

@@ -1,6 +1,7 @@
 package com.bank.product.client;
 
 import com.bank.product.client.dto.*;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -33,8 +34,9 @@ public class WorkflowClient {
     }
 
     /**
-     * Submit a workflow for approval
+     * Submit a workflow for approval with circuit breaker protection
      */
+    @CircuitBreaker(name = "workflow-service", fallbackMethod = "submitWorkflowFallback")
     public WorkflowSubmitResponse submitWorkflow(WorkflowSubmitRequest request) {
         log.info("Submitting workflow to workflow service: entity={}, id={}",
                 request.getEntityType(), request.getEntityId());
@@ -64,6 +66,21 @@ public class WorkflowClient {
             log.error("Error submitting workflow", e);
             throw new RuntimeException("Failed to submit workflow: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Fallback method when workflow service is unavailable
+     */
+    private WorkflowSubmitResponse submitWorkflowFallback(WorkflowSubmitRequest request, Exception e) {
+        log.error("Workflow service circuit breaker activated for entity: {}, error: {}",
+                request.getEntityId(), e.getMessage());
+
+        // Return a response indicating workflow service is unavailable
+        return WorkflowSubmitResponse.builder()
+                .workflowId("CIRCUIT_BREAKER_OPEN")
+                .status("SERVICE_UNAVAILABLE")
+                .message("Workflow service temporarily unavailable. Request will be retried.")
+                .build();
     }
 
     /**

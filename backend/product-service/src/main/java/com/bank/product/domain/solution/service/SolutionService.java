@@ -29,4 +29,16 @@ public interface SolutionService {
     Solution saveSolution(Solution solution);
 
     void deleteSolution(String tenantId, String solutionId);
+
+    /**
+     * Activate solution (single optimized update query)
+     * @return number of documents updated
+     */
+    int activateSolution(String solutionId);
+
+    /**
+     * Reject solution (single optimized update query)
+     * @return number of documents updated
+     */
+    int rejectSolution(String solutionId);
 }

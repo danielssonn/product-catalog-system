@@ -2,6 +2,23 @@
 
 A comprehensive Product Catalog Management System for Commercial Banks with Cash Management capabilities.
 
+---
+
+## 🚀 Quick Start
+
+### For Developers
+1. **Setup**: See [CLAUDE.md](CLAUDE.md) for development commands
+2. **Standards**: Review [MANDATORY STANDARDS](CLAUDE.md#⚠️-important-mandatory-standards-for-all-new-services) (top of CLAUDE.md)
+3. **New Service?**: Follow [NEW_SERVICE_CHECKLIST.md](NEW_SERVICE_CHECKLIST.md)
+
+### For Code Review
+- ✅ All [mandatory standards](CLAUDE.md#⚠️-important-mandatory-standards-for-all-new-services) implemented?
+- ✅ [Checklist](NEW_SERVICE_CHECKLIST.md) complete?
+- ✅ Tests passing? (unit, integration, performance)
+- ✅ Documentation updated?
+
+---
+
 ## Architecture Overview
 
 ### Technology Stack
