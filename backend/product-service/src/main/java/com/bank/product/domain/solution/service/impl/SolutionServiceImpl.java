@@ -109,6 +109,13 @@ public class SolutionServiceImpl implements SolutionService {
 
     @Override
     @Transactional
+    public Solution saveSolution(Solution solution) {
+        log.debug("Saving solution: {}", solution.getId());
+        return solutionRepository.save(solution);
+    }
+
+    @Override
+    @Transactional
     public void deleteSolution(String tenantId, String solutionId) {
         log.info("Deleting solution {} for tenant {}", solutionId, tenantId);
         if (!solutionRepository.existsByTenantIdAndSolutionId(tenantId, solutionId)) {
