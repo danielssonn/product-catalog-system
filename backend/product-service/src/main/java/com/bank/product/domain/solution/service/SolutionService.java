@@ -26,5 +26,7 @@ public interface SolutionService {
 
     Solution updateSolutionStatus(String tenantId, String solutionId, SolutionStatus status, String userId);
 
+    Solution saveSolution(Solution solution);
+
     void deleteSolution(String tenantId, String solutionId);
 }

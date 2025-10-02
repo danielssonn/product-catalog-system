@@ -4,7 +4,7 @@ spring:
 
   data:
     mongodb:
-      uri: mongodb://admin:admin123@localhost:27018/product_catalog_db?authSource=admin
+      uri: mongodb://${MONGODB_USERNAME:admin}:${MONGODB_PASSWORD:admin123}@localhost:27018/product_catalog_db?authSource=admin
       auto-index-creation: true
 
   kafka:

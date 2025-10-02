@@ -107,10 +107,12 @@ public class SolutionController {
             @PathVariable String solutionId) {
 
         log.info("Activating solution: {}", solutionId);
-        // Extract tenant from solution
+        // Get solution by MongoDB ID and update status
         Solution solution = solutionService.getSolutionById(solutionId);
-        solutionService.updateSolutionStatus(
-                solution.getTenantId(), solutionId, SolutionStatus.ACTIVE, "system");
+        solution.setStatus(SolutionStatus.ACTIVE);
+        solution.setUpdatedAt(java.time.LocalDateTime.now());
+        solution.setUpdatedBy("system");
+        solutionService.saveSolution(solution);
         return ResponseEntity.ok().build();
     }
 
