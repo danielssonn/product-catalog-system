@@ -27,15 +27,17 @@ All sensitive credentials have been externalized to environment variables and ar
 |----------|-------------|-------------------|
 | `MONGODB_USERNAME` | MongoDB admin username | admin |
 | `MONGODB_PASSWORD` | MongoDB admin password | **changeme** |
+| `MONGODB_HOST` | MongoDB host | localhost (local), mongodb (docker) |
+| `MONGODB_PORT` | MongoDB port | 27017 |
+| `MONGODB_DATABASE` | MongoDB database name | productcatalog |
 | `PRODUCT_SERVICE_USERNAME` | Product service auth username | admin |
 | `PRODUCT_SERVICE_PASSWORD` | Product service auth password | **changeme** |
 | `WORKFLOW_SERVICE_USERNAME` | Workflow service auth username | admin |
 | `WORKFLOW_SERVICE_PASSWORD` | Workflow service auth password | **changeme** |
 | `SECURITY_USERNAME` | Workflow service Spring Security username | admin |
 | `SECURITY_PASSWORD` | Workflow service Spring Security password | **changeme** |
-| `POSTGRES_USER` | Temporal database username | temporal |
-| `POSTGRES_PASSWORD` | Temporal database password | **changeme** |
-| `POSTGRES_DB` | Temporal database name | temporal |
+| `TEMPORAL_POSTGRES_USER` | Temporal database username | temporal |
+| `TEMPORAL_POSTGRES_PASSWORD` | Temporal database password | **changeme** |
 
 ### Files Modified
 
@@ -46,9 +48,11 @@ All sensitive credentials have been externalized to environment variables and ar
 - `backend/workflow-service/src/main/resources/application-docker.yml`
 - `backend/notification-service/src/main/resources/application.yml`
 - `backend/notification-service/src/main/resources/application-docker.yml`
+- `backend/version-service/src/main/resources/application.yml`
+- `backend/version-service/src/main/resources/application-docker.yml`
 
 **Docker Compose (using env vars):**
-- `docker-compose.simple.yml`
+- `docker-compose.yml` - All services configured with environment variables
 
 ### Security Best Practices
 
@@ -91,24 +95,33 @@ For production environments:
 
 ### Local Development
 
-For local development (already configured):
+For local development, all services use environment variables with sensible defaults:
 
 ```bash
-# .env file contains development credentials
+# Default values (can be overridden via .env file or shell environment)
 MONGODB_USERNAME=admin
 MONGODB_PASSWORD=admin123
+MONGODB_HOST=localhost (or mongodb for Docker)
+MONGODB_PORT=27017
+MONGODB_DATABASE=productcatalog
+
 PRODUCT_SERVICE_USERNAME=admin
 PRODUCT_SERVICE_PASSWORD=admin123
+
 WORKFLOW_SERVICE_USERNAME=admin
 WORKFLOW_SERVICE_PASSWORD=admin123
+
 SECURITY_USERNAME=admin
-SECURITY_PASSWORD=admin
-POSTGRES_USER=temporal
-POSTGRES_PASSWORD=temporal
-POSTGRES_DB=temporal
+SECURITY_PASSWORD=admin123
+
+TEMPORAL_POSTGRES_USER=temporal
+TEMPORAL_POSTGRES_PASSWORD=temporal
 ```
 
-**Note:** The `.env` file is gitignored and safe for local development only.
+**Note:**
+- All YAML files use environment variable substitution with defaults (e.g., `${MONGODB_USERNAME:-admin}`)
+- No credentials are hardcoded in any configuration file
+- Create a `.env` file to override defaults (`.env` is gitignored)
 
 ### Verification
 
@@ -116,11 +129,29 @@ To verify environment variables are working:
 
 ```bash
 # Start services
-docker-compose -f docker-compose.simple.yml up -d
+docker-compose up -d
 
 # Test authentication
 curl -u admin:admin123 http://localhost:8082/api/v1/catalog/available
-curl -u admin:admin123 http://localhost:8089/api/v1/workflow-templates
+curl -u admin:admin http://localhost:8089/api/v1/workflow-templates
 ```
 
 Both should return HTTP 200.
+
+### How It Works
+
+All configuration files use environment variable substitution with defaults:
+
+```yaml
+# Example from application.yml
+spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGODB_USERNAME:admin}:${MONGODB_PASSWORD:admin123}@localhost:27017/product_catalog_db?authSource=admin
+```
+
+**Syntax:** `${VAR_NAME:default_value}`
+- If `VAR_NAME` is set in environment: uses the environment value
+- If `VAR_NAME` is not set: uses `default_value`
+- Default values are dev-friendly (admin/admin123) for local development
+- Production deployments MUST override these with secure credentials
