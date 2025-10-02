@@ -1,29 +1,10 @@
-FROM maven:3.9-eclipse-temurin-21 AS build
-
-WORKDIR /app
-
-# Copy parent pom and common module first for better caching
-COPY pom.xml .
-COPY common/pom.xml ./common/
-COPY product-service/pom.xml ./product-service/
-
-# Download dependencies
-RUN mvn dependency:go-offline -B
-
-# Copy source code
-COPY common/src ./common/src
-COPY product-service/src ./product-service/src
-
-# Build the application
-RUN mvn clean package -DskipTests -pl product-service -am
-
 # Runtime stage
 FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-# Copy the built jar from build stage
-COPY --from=build /app/product-service/target/*.jar app.jar
+# Copy pre-built jar (build locally with: mvn clean package -DskipTests)
+COPY product-service/target/*.jar app.jar
 
 # Expose service port
 EXPOSE 8081

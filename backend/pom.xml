@@ -23,6 +23,8 @@
     <modules>
         <module>common</module>
         <module>product-service</module>
+        <module>workflow-service</module>
+        <module>notification-service</module>
     </modules>
 
     <properties>

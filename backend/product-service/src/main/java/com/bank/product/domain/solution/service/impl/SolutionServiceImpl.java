@@ -1,5 +1,6 @@
 package com.bank.product.domain.solution.service.impl;
 
+import com.bank.product.domain.solution.dto.ConfigureSolutionRequest;
 import com.bank.product.domain.solution.repository.SolutionRepository;
 import com.bank.product.domain.solution.service.SolutionService;
 import com.bank.product.domain.solution.model.Solution;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -25,6 +27,36 @@ public class SolutionServiceImpl implements SolutionService {
         log.debug("Fetching solution {} for tenant {}", solutionId, tenantId);
         return solutionRepository.findByTenantIdAndSolutionId(tenantId, solutionId)
                 .orElseThrow(() -> new RuntimeException("Solution not found: " + solutionId));
+    }
+
+    @Override
+    public Solution getSolutionById(String solutionId) {
+        log.debug("Fetching solution by id: {}", solutionId);
+        return solutionRepository.findById(solutionId)
+                .orElseThrow(() -> new RuntimeException("Solution not found: " + solutionId));
+    }
+
+    @Override
+    @Transactional
+    public Solution createSolutionFromCatalog(String tenantId, String userId, ConfigureSolutionRequest request) {
+        log.info("Creating solution from catalog {} for tenant {}", request.getCatalogProductId(), tenantId);
+
+        Solution solution = new Solution();
+        solution.setId(UUID.randomUUID().toString());
+        solution.setSolutionId("sol-" + UUID.randomUUID().toString().substring(0, 8));
+        solution.setTenantId(tenantId);
+        solution.setCatalogProductId(request.getCatalogProductId());
+        solution.setName(request.getSolutionName());
+        solution.setDescription(request.getDescription());
+        solution.setCategory("CHECKING"); // Default, should come from catalog
+        solution.setStatus(SolutionStatus.DRAFT);
+        solution.setVersion("1.0");
+        solution.setCreatedAt(LocalDateTime.now());
+        solution.setCreatedBy(userId);
+        solution.setUpdatedAt(LocalDateTime.now());
+        solution.setUpdatedBy(userId);
+
+        return solutionRepository.save(solution);
     }
 
     @Override

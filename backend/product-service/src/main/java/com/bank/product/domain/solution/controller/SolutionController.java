@@ -1,5 +1,10 @@
 package com.bank.product.domain.solution.controller;
 
+import com.bank.product.client.WorkflowClient;
+import com.bank.product.client.dto.WorkflowSubmitRequest;
+import com.bank.product.client.dto.WorkflowSubmitResponse;
+import com.bank.product.domain.solution.dto.ConfigureSolutionRequest;
+import com.bank.product.domain.solution.dto.ConfigureSolutionResponse;
 import com.bank.product.domain.solution.service.SolutionService;
 import com.bank.product.domain.solution.model.Solution;
 import com.bank.product.domain.solution.model.SolutionStatus;
@@ -9,8 +14,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Tenant Solution Controller
@@ -23,6 +32,102 @@ import org.springframework.web.bind.annotation.*;
 public class SolutionController {
 
     private final SolutionService solutionService;
+    private final WorkflowClient workflowClient;
+
+    /**
+     * Configure a new solution from catalog product with workflow approval
+     */
+    @PostMapping("/configure")
+    public ResponseEntity<ConfigureSolutionResponse> configureSolution(
+            @RequestHeader("X-Tenant-ID") String tenantId,
+            @RequestHeader("X-User-ID") String userId,
+            @RequestBody ConfigureSolutionRequest request) {
+
+        log.info("Configuring solution from catalog {} for tenant {}",
+                request.getCatalogProductId(), tenantId);
+
+        // Create solution in DRAFT status
+        Solution solution = solutionService.createSolutionFromCatalog(
+                tenantId, userId, request);
+
+        // Build workflow metadata for rule evaluation
+        Map<String, Object> entityMetadata = new HashMap<>();
+        entityMetadata.put("solutionType", solution.getCategory());
+        entityMetadata.put("pricingVariance", request.getPricingVariance() != null ?
+                request.getPricingVariance() : 0.0);
+        entityMetadata.put("riskLevel", request.getRiskLevel() != null ?
+                request.getRiskLevel() : "LOW");
+        entityMetadata.put("tenantTier", "STANDARD");
+
+        // Build entity data
+        Map<String, Object> entityData = new HashMap<>();
+        entityData.put("solutionId", solution.getId());
+        entityData.put("solutionName", solution.getName());
+        entityData.put("catalogProductId", request.getCatalogProductId());
+        entityData.put("customPricing", request.getCustomFees());
+
+        // Submit workflow for approval
+        WorkflowSubmitRequest workflowRequest = WorkflowSubmitRequest.builder()
+                .entityType("SOLUTION_CONFIGURATION")
+                .entityId(solution.getId())
+                .entityData(entityData)
+                .entityMetadata(entityMetadata)
+                .initiatedBy(userId)
+                .tenantId(tenantId)
+                .businessJustification(request.getBusinessJustification())
+                .priority(request.getPriority())
+                .build();
+
+        WorkflowSubmitResponse workflowResponse = workflowClient.submitWorkflow(workflowRequest);
+
+        // Build response
+        ConfigureSolutionResponse response = ConfigureSolutionResponse.builder()
+                .solutionId(solution.getId())
+                .solutionName(solution.getName())
+                .status(solution.getStatus().name())
+                .workflowId(workflowResponse.getWorkflowId())
+                .workflowStatus(workflowResponse.getStatus())
+                .approvalRequired(workflowResponse.isApprovalRequired())
+                .requiredApprovals(workflowResponse.getRequiredApprovals())
+                .approverRoles(workflowResponse.getApproverRoles())
+                .sequential(workflowResponse.isSequential())
+                .slaHours(workflowResponse.getSlaHours())
+                .estimatedCompletion(workflowResponse.getEstimatedCompletion())
+                .message(workflowResponse.getMessage())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Activate solution (called by workflow callback)
+     */
+    @PutMapping("/{solutionId}/activate")
+    public ResponseEntity<Void> activateSolution(
+            @PathVariable String solutionId) {
+
+        log.info("Activating solution: {}", solutionId);
+        // Extract tenant from solution
+        Solution solution = solutionService.getSolutionById(solutionId);
+        solutionService.updateSolutionStatus(
+                solution.getTenantId(), solutionId, SolutionStatus.ACTIVE, "system");
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Reject solution (called by workflow callback)
+     */
+    @PutMapping("/{solutionId}/reject")
+    public ResponseEntity<Void> rejectSolution(
+            @PathVariable String solutionId,
+            @RequestBody Map<String, String> request) {
+
+        log.info("Rejecting solution: {}", solutionId);
+        Solution solution = solutionService.getSolutionById(solutionId);
+        solutionService.updateSolutionStatus(
+                solution.getTenantId(), solutionId, SolutionStatus.REJECTED, "system");
+        return ResponseEntity.ok().build();
+    }
 
     @GetMapping("/{solutionId}")
     public ResponseEntity<Solution> getSolution(

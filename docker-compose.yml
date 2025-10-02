@@ -226,6 +226,63 @@ services:
     networks:
       - product-catalog-network
 
+  # Workflow Service
+  workflow-service:
+    build:
+      context: ./backend
+      dockerfile: workflow-service/Dockerfile
+    container_name: workflow-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    ports:
+      - "8089:8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      TEMPORAL_CONNECTION_TARGET: temporal:7233
+      SERVER_PORT: 8089
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8089/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./backend
+      dockerfile: notification-service/Dockerfile
+    container_name: notification-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/product_catalog_db?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SERVER_PORT: 8086
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8086/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # API Gateway
   api-gateway:
     build:
@@ -239,6 +296,7 @@ services:
       - audit-service
       - tenant-service
       - version-service
+      - workflow-service
     ports:
       - "8080:8080"
     environment:
@@ -251,6 +309,7 @@ services:
       EVENT_PUBLISHER_SERVICE_URL: http://event-publisher-service:8085
       TENANT_SERVICE_URL: http://tenant-service:8086
       VERSION_SERVICE_URL: http://version-service:8087
+      WORKFLOW_SERVICE_URL: http://workflow-service:8089
     networks:
       - product-catalog-network
 
@@ -284,19 +343,19 @@ services:
     ports:
       - "7233:7233"
     environment:
-      - DB=postgresql12
+      - DB=postgres12
       - DB_PORT=5432
       - POSTGRES_USER=temporal
       - POSTGRES_PWD=temporal
       - POSTGRES_SEEDS=temporal-postgres
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
     networks:
       - product-catalog-network
     healthcheck:
-      test: ["CMD", "tctl", "cluster", "health"]
+      test: ["CMD", "tctl", "--address", "temporal:7233", "cluster", "health"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
 
   # Temporal UI
   temporal-ui:
