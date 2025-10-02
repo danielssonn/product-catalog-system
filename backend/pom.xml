@@ -25,7 +25,17 @@
         <module>product-service</module>
         <module>workflow-service</module>
         <module>notification-service</module>
+        <module>version-service</module>
     </modules>
+
+    <!-- Disabled modules - add progressively as they are implemented:
+         <module>bundle-service</module>
+         <module>cross-sell-service</module>
+         <module>audit-service</module>
+         <module>event-publisher-service</module>
+         <module>tenant-service</module>
+         <module>api-gateway</module>
+    -->
 
     <properties>
         <java.version>21</java.version>

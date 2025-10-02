@@ -64,6 +64,29 @@ com.bank.product
 - Status: DRAFT, ACTIVE, SUSPENDED, RETIRED
 - Approval workflow for changes
 
+## Security and Configuration
+
+### Environment Variables
+All credentials are externalized to environment variables with sensible defaults for development. **No credentials are hardcoded in any configuration file.**
+
+**Configuration Pattern:**
+```yaml
+# All YAML files use environment variable substitution with defaults
+spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGODB_USERNAME:-admin}:${MONGODB_PASSWORD:-admin123}@...
+```
+
+**Key Environment Variables:**
+- `MONGODB_USERNAME` / `MONGODB_PASSWORD` - MongoDB credentials (default: admin/admin123)
+- `WORKFLOW_SERVICE_USERNAME` / `WORKFLOW_SERVICE_PASSWORD` - Workflow service auth (default: admin/admin123)
+- `PRODUCT_SERVICE_USERNAME` / `PRODUCT_SERVICE_PASSWORD` - Product service callback auth (default: admin/admin123)
+- `SECURITY_USERNAME` / `SECURITY_PASSWORD` - Workflow service Spring Security (default: admin/admin123)
+- `TEMPORAL_POSTGRES_USER` / `TEMPORAL_POSTGRES_PASSWORD` - Temporal database (default: temporal/temporal)
+
+**For Production:** Override defaults via environment variables or secrets management (Vault, AWS Secrets Manager, K8s Secrets). See [SECURITY.md](SECURITY.md) for details.
+
 ## Development Commands
 
 ### Build
@@ -78,8 +101,11 @@ mvn clean package
 
 ### Docker Deployment
 ```bash
-# Start all services
+# Start all services (uses default env var values)
 docker-compose up -d
+
+# Start with custom credentials
+MONGODB_PASSWORD=mySecurePassword docker-compose up -d
 
 # View logs
 docker-compose logs -f product-service
@@ -90,8 +116,11 @@ docker-compose down
 
 ### MongoDB Access
 ```bash
-# Connect to MongoDB
+# Connect to MongoDB (uses default credentials)
 docker exec -it mongodb mongosh -u admin -p admin123 --authenticationDatabase admin
+
+# Or use environment variable
+docker exec -it mongodb mongosh -u ${MONGODB_USERNAME} -p ${MONGODB_PASSWORD} --authenticationDatabase admin
 
 # Use product catalog database
 use productcatalog
@@ -112,9 +141,17 @@ use productcatalog
 - `PATCH /api/v1/solutions/{solutionId}/status` - Update solution status
 
 ### Authentication
-All endpoints use HTTP Basic Authentication:
-- Admin: `admin:admin123` (ROLE_ADMIN, ROLE_USER)
-- User: `catalog-user:catalog123` (ROLE_USER)
+All endpoints use HTTP Basic Authentication with credentials from environment variables:
+
+**Product Service (port 8082):**
+- Admin: `${SECURITY_USERNAME:-admin}:${SECURITY_PASSWORD:-admin123}` (ROLE_ADMIN, ROLE_USER)
+- Default: `admin:admin123`
+
+**Workflow Service (port 8089):**
+- Admin: `${SECURITY_USERNAME:-admin}:${SECURITY_PASSWORD:-admin123}` (ROLE_ADMIN, ROLE_USER)
+- Default: `admin:admin123`
+
+**Note:** These default credentials are for development only. Production deployments must override via environment variables.
 
 ## Important Conventions
 
@@ -909,12 +946,20 @@ See [AGENTIC_WORKFLOW_DESIGN.md](AGENTIC_WORKFLOW_DESIGN.md) for hybrid AI+Rules
 ## File Locations
 
 ### Configuration
-- `backend/product-service/src/main/resources/application.yml` - Product service config
-- `backend/workflow-service/src/main/resources/application.yml` - Workflow service config
-- `backend/workflow-service/src/main/resources/application-docker.yml` - Docker overrides
-- `docker-compose.yml` - Container orchestration (includes Temporal + PostgreSQL)
+All configuration files use environment variable substitution (no hardcoded credentials):
+
+- `backend/product-service/src/main/resources/application.yml` - Product service config (env vars)
+- `backend/product-service/src/main/resources/application-docker.yml` - Docker overrides (env vars)
+- `backend/workflow-service/src/main/resources/application.yml` - Workflow service config (env vars)
+- `backend/workflow-service/src/main/resources/application-docker.yml` - Docker overrides (env vars)
+- `backend/notification-service/src/main/resources/application.yml` - Notification service config (env vars)
+- `backend/notification-service/src/main/resources/application-docker.yml` - Docker overrides (env vars)
+- `backend/version-service/src/main/resources/application.yml` - Version service config (env vars)
+- `backend/version-service/src/main/resources/application-docker.yml` - Docker overrides (env vars)
+- `docker-compose.yml` - Container orchestration (all credentials via env vars with defaults)
 - `backend/pom.xml` - Parent POM
 - `init-mongo.js` - MongoDB initialization script
+- `SECURITY.md` - Complete environment variable documentation
 
 ### Domain Models
 - Common models: `backend/common/src/main/java/com/bank/product/`
