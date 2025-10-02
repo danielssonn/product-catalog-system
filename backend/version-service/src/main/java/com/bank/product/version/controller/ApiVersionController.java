@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -26,12 +28,15 @@ public class ApiVersionController {
 
     /**
      * Register a new API version
+     * Requires ROLE_ADMIN
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiVersion> registerVersion(
-            @RequestHeader("X-User-ID") String userId,
+            Authentication authentication,
             @Valid @RequestBody ApiVersion apiVersion) {
 
+        String userId = authentication.getName();
         log.info("Registering new API version {} for service {} by user {}",
                 apiVersion.getVersion(), apiVersion.getServiceId(), userId);
 
@@ -92,14 +97,17 @@ public class ApiVersionController {
 
     /**
      * Update version status
+     * Requires ROLE_ADMIN
      */
     @PatchMapping("/{serviceId}/{version}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiVersion> updateVersionStatus(
+            Authentication authentication,
             @PathVariable String serviceId,
             @PathVariable String version,
-            @RequestParam VersionStatus status,
-            @RequestHeader("X-User-ID") String userId) {
+            @RequestParam VersionStatus status) {
 
+        String userId = authentication.getName();
         log.info("Updating version {} status to {} for service {} by user {}",
                 version, status, serviceId, userId);
 
@@ -111,14 +119,17 @@ public class ApiVersionController {
 
     /**
      * Deprecate version
+     * Requires ROLE_ADMIN
      */
     @PostMapping("/{serviceId}/{version}/deprecate")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiVersion> deprecateVersion(
+            Authentication authentication,
             @PathVariable String serviceId,
             @PathVariable String version,
-            @RequestParam String reason,
-            @RequestHeader("X-User-ID") String userId) {
+            @RequestParam String reason) {
 
+        String userId = authentication.getName();
         log.info("Deprecating version {} for service {}: {} by user {}",
                 version, serviceId, reason, userId);
 

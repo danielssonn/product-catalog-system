@@ -27,7 +27,7 @@ public class WorkflowTemplate {
     /**
      * Template identifier (e.g., "SOLUTION_CONFIG_V1")
      */
-    @Indexed(unique = true)
+    @Indexed(unique = true, name = "templateId_1")
     private String templateId;
 
     /**
