@@ -211,7 +211,7 @@ public class ServiceClass {
 #### Automatic Tenant Isolation (Required)
 **Use the abstracted tenant isolation pattern** - no manual tenant checks needed!
 
-See **[TENANT_ISOLATION.md](TENANT_ISOLATION.md)** for complete implementation guide.
+See **[TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md)** for complete implementation guide.
 
 **Quick Start:**
 ```java
@@ -250,7 +250,7 @@ public ResponseEntity<Resource> getResource(@PathVariable String id) {
 - `WebMvcConfig.java` - Interceptor registration
 - `TenantAwareRepository.java` - Base repository with auto-filtering
 
-**See:** [TENANT_ISOLATION_SUMMARY.md](TENANT_ISOLATION_SUMMARY.md) for architecture and test results.
+**See:** [TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md) for complete architecture, usage patterns, and test results.
 
 ### 6. Testing Standards ✅
 
@@ -339,8 +339,8 @@ services:
 2. **[NEW_SERVICE_CHECKLIST.md](NEW_SERVICE_CHECKLIST.md)** - Step-by-step checklist for new services
 3. **[PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md)** - Detailed implementation examples and test results
 4. **[SECURITY.md](SECURITY.md)** - Security guidelines and environment variable reference
-5. **[TENANT_ISOLATION.md](TENANT_ISOLATION.md)** - Complete tenant isolation implementation guide
-6. **[TENANT_ISOLATION_SUMMARY.md](TENANT_ISOLATION_SUMMARY.md)** - Tenant isolation architecture and test results
+5. **[TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md)** - Complete tenant isolation implementation guide ✅
+6. **[OUTBOX_PATTERN_DESIGN.md](OUTBOX_PATTERN_DESIGN.md)** - Event-driven architecture with transactional outbox pattern ✅
 
 **Test Scripts:**
 - [test-optimizations.sh](test-optimizations.sh) - Performance and connection pooling tests
@@ -487,8 +487,21 @@ use productcatalog
 ### Solutions (Tenant Products)
 - `GET /api/v1/solutions` - List tenant solutions
 - `GET /api/v1/solutions/{solutionId}` - Get solution details
-- `POST /api/v1/solutions/configure` - Configure new solution from catalog
+- `POST /api/v1/solutions/configure` - Configure new solution from catalog (returns HTTP 202 Accepted)
+- `GET /api/v1/solutions/{solutionId}/workflow-status` - Poll workflow submission status (for async workflow)
 - `PATCH /api/v1/solutions/{solutionId}/status` - Update solution status
+
+**Async Workflow Pattern:**
+The `/configure` endpoint submits workflows asynchronously. It returns immediately with HTTP 202 and provides:
+- `pollUrl` - URL to poll for workflow status
+- `pollIntervalMs` - Recommended polling interval (1000ms)
+
+Poll the `/workflow-status` endpoint to track the submission:
+- `PENDING_SUBMISSION` - Workflow being submitted (keep polling)
+- `SUBMITTED` - Workflow created successfully (includes workflowId and approval metadata)
+- `SUBMISSION_FAILED` - Submission failed (includes error and retry time)
+
+See [ASYNC_WORKFLOW_POLLING.md](ASYNC_WORKFLOW_POLLING.md) for complete documentation.
 
 ### Authentication
 All endpoints use HTTP Basic Authentication with credentials from environment variables:
@@ -682,10 +695,88 @@ No code changes needed - just configure workflow template!
 }
 ```
 
+## Event-Driven Architecture: Transactional Outbox Pattern ✅
+
+### Overview
+The system uses the **Transactional Outbox Pattern** for atomic event publishing, ensuring no orphaned records and reliable distributed transactions. This replaces HTTP callback-based communication with event-driven Kafka messaging.
+
+### Why Outbox Pattern?
+
+**Problem Solved:** The "dual write problem" - guaranteeing that database writes and event publishing happen atomically.
+
+**Without Outbox (Broken):**
+```java
+@Transactional
+public Solution createSolution(...) {
+    solution = solutionRepository.save(solution);  // ✅ Saved
+    kafkaTemplate.send("solution.created", event);  // ❌ If Kafka down → Event lost!
+    // Result: Orphaned solution (no workflow triggered)
+}
+```
+
+**With Outbox (Atomic):**
+```java
+@Transactional
+public Solution createSolution(...) {
+    solution = solutionRepository.save(solution);  // Write 1
+    outboxService.saveEvent(event);                 // Write 2
+    // Both succeed or both fail (single MongoDB transaction)
+}
+
+// Background publisher polls every 100ms
+@Scheduled(fixedDelay = 100)
+public void publishEvents() {
+    for (OutboxEvent event : findUnpublished()) {
+        kafkaTemplate.send(event);  // Retries until Kafka accepts
+        markAsPublished(event);
+    }
+}
+```
+
+### Architecture Flow
+
+```
+Product-Service: [Solution + OutboxEvent] ATOMIC → OutboxPublisher → Kafka
+                                                                        ↓
+Workflow-Service: SolutionEventConsumer → Temporal Workflow → EventPublisherActivity → Kafka
+                                                                                          ↓
+Product-Service: WorkflowEventConsumer → Update Solution Status (ACTIVE/REJECTED)
+```
+
+### Key Benefits
+
+- ✅ **Atomic**: Single MongoDB transaction (solution + event)
+- ✅ **Guaranteed Delivery**: If solution exists → Event **will** be published
+- ✅ **Automatic Retry**: OutboxPublisher retries until Kafka available
+- ✅ **Idempotent**: Deterministic workflow IDs prevent duplicates
+- ✅ **50% less code** than saga orchestration
+- ✅ **Observable**: Outbox table + Kafka topics + Temporal UI
+
+### Kafka Topics
+
+- `solution.created` - Solution creation events
+- `workflow.completed` - Workflow approval/rejection events
+- `solution.status-changed` - Status change events
+
+### Endpoints
+
+- **Old (HTTP callbacks):** `POST /api/v1/solutions/configure` - Uses HTTP callbacks (deprecated)
+- **New (Event-driven):** `POST /api/v1/solutions/configure-v2` - Uses outbox pattern ✅
+
+### Documentation
+
+See **[OUTBOX_PATTERN_DESIGN.md](OUTBOX_PATTERN_DESIGN.md)** for complete design, implementation, testing, and troubleshooting guide.
+
+---
+
 ## Product-Service & Workflow-Service Integration
 
 ### Overview
 The product-service and workflow-service are fully integrated for solution configuration approval workflows. When a tenant configures a new solution from the catalog, an approval workflow is automatically triggered based on configurable business rules.
+
+**Integration Methods:**
+1. **HTTP Callbacks (V1)** - Synchronous, callback-based (existing implementation)
+2. **Event-Driven (V2)** - Asynchronous, outbox pattern-based (recommended) ✅
 
 ### Integration Architecture
 
@@ -852,7 +943,7 @@ db.solutions.insertOne({
 2. **Product-Service** calls **Workflow-Service**:
 ```bash
 # Internal service-to-service call
-curl -u admin:admin -X POST http://workflow-service:8089/api/v1/workflows/submit \
+curl -u admin:admin123 -X POST http://workflow-service:8089/api/v1/workflows/submit \
   -H "Content-Type: application/json" \
   -d '{
     "entityType": "SOLUTION_CONFIGURATION",
@@ -895,7 +986,7 @@ curl -u admin:admin -X POST http://workflow-service:8089/api/v1/workflows/submit
 
 ```bash
 # Check workflow status
-curl -u admin:admin http://localhost:8089/api/v1/workflows/34c33af1-b8f4-4523-9f64-f6f9c3a770b9
+curl -u admin:admin123 http://localhost:8089/api/v1/workflows/34c33af1-b8f4-4523-9f64-f6f9c3a770b9
 ```
 
 **Response:**
@@ -928,7 +1019,7 @@ curl -u admin:admin http://localhost:8089/api/v1/workflows/34c33af1-b8f4-4523-9f
 #### Step 3: First Approver Approves
 
 ```bash
-curl -u admin:admin -X POST \
+curl -u admin:admin123 -X POST \
   http://localhost:8089/api/v1/workflows/34c33af1-b8f4-4523-9f64-f6f9c3a770b9/approve \
   -H "Content-Type: application/json" \
   -d '{
@@ -945,7 +1036,7 @@ curl -u admin:admin -X POST \
 #### Step 4: Second Approver Approves
 
 ```bash
-curl -u admin:admin -X POST \
+curl -u admin:admin123 -X POST \
   http://localhost:8089/api/v1/workflows/34c33af1-b8f4-4523-9f64-f6f9c3a770b9/approve \
   -H "Content-Type: application/json" \
   -d '{
@@ -1021,7 +1112,7 @@ curl -u admin:admin123 http://localhost:8082/api/v1/solutions/58a5aba0-e433-4e04
 If an approver rejects the workflow:
 
 ```bash
-curl -u admin:admin -X POST \
+curl -u admin:admin123 -X POST \
   http://localhost:8089/api/v1/workflows/34c33af1-b8f4-4523-9f64-f6f9c3a770b9/reject \
   -H "Content-Type: application/json" \
   -d '{
@@ -1048,10 +1139,10 @@ curl -u admin:admin123 -X PUT \
 ### Service Communication Details
 
 #### Authentication
-- **Product-Service → Workflow-Service**: HTTP Basic Auth (`admin:admin`)
+- **Product-Service → Workflow-Service**: HTTP Basic Auth (`admin:admin123`)
 - **Workflow-Service → Product-Service**: HTTP Basic Auth (`admin:admin123`)
 - **User → Product-Service**: HTTP Basic Auth (`admin:admin123`)
-- **User → Workflow-Service**: HTTP Basic Auth (`admin:admin`)
+- **User → Workflow-Service**: HTTP Basic Auth (`admin:admin123`)
 
 #### Service URLs (Docker Environment)
 - **Product-Service**: `http://product-service:8082` (internal), `http://localhost:8082` (external)
@@ -1064,7 +1155,7 @@ curl -u admin:admin123 -X PUT \
     service:
       url: http://workflow-service:8089
       username: admin
-      password: admin
+      password: admin123
   ```
 
 - Workflow-Service: [application-docker.yml](backend/workflow-service/src/main/resources/application-docker.yml)

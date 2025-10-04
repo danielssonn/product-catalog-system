@@ -1,7 +1,9 @@
 package com.bank.product.workflow.config;
 
+import com.bank.product.workflow.temporal.activity.EventPublisherActivityImpl;
 import com.bank.product.workflow.temporal.activity.WorkflowActivitiesImpl;
 import com.bank.product.workflow.temporal.workflow.ApprovalWorkflowImpl;
+import com.bank.product.workflow.temporal.workflow.ApprovalWorkflowImplV2;
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -44,6 +46,7 @@ public class TemporalConfiguration {
     private int maxConcurrentActivityExecutors;
 
     private final WorkflowActivitiesImpl workflowActivities;
+    private final EventPublisherActivityImpl eventPublisherActivity;
 
     private WorkerFactory workerFactory;
 
@@ -105,13 +108,17 @@ public class TemporalConfiguration {
 
         Worker worker = workerFactory.newWorker(workflowTaskQueue, workerOptions);
 
-        // Register workflow implementation
+        // Register workflow implementations
+        // Note: Both ApprovalWorkflowImpl and ApprovalWorkflowImplV2 implement the same interface
+        // Can only register one at a time. Using V1 (callback-based) for now.
+        // To use V2 (event-driven), uncomment next line and comment out ApprovalWorkflowImpl line
         worker.registerWorkflowImplementationTypes(ApprovalWorkflowImpl.class);
-        log.info("Registered workflow: ApprovalWorkflowImpl");
+        // worker.registerWorkflowImplementationTypes(ApprovalWorkflowImplV2.class);
+        log.info("Registered workflows: ApprovalWorkflowImpl");
 
-        // Register activities implementation
-        worker.registerActivitiesImplementations(workflowActivities);
-        log.info("Registered activities: WorkflowActivitiesImpl");
+        // Register activities implementations
+        worker.registerActivitiesImplementations(workflowActivities, eventPublisherActivity);
+        log.info("Registered activities: WorkflowActivitiesImpl, EventPublisherActivityImpl");
 
         // Start worker
         workerFactory.start();

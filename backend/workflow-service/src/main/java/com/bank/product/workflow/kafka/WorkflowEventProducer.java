@@ -2,6 +2,7 @@ package com.bank.product.workflow.kafka;
 
 import com.bank.product.workflow.domain.model.ApprovalDecision;
 import com.bank.product.workflow.domain.model.WorkflowSubject;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -18,7 +19,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WorkflowEventProducer {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     public void publishWorkflowApproved(WorkflowSubject subject, List<ApprovalDecision> approvals) {
         log.info("Publishing workflow approved event: workflowId={}", subject.getWorkflowId());
@@ -49,8 +51,14 @@ public class WorkflowEventProducer {
 
         event.put("approvals", approvalInfos);
 
-        kafkaTemplate.send("workflow.approved", subject.getWorkflowId(), event);
-        log.info("Published workflow approved event to Kafka topic: workflow.approved");
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            kafkaTemplate.send("workflow.approved", subject.getWorkflowId(), payload);
+            log.info("Published workflow approved event to Kafka topic: workflow.approved");
+        } catch (Exception e) {
+            log.error("Failed to serialize workflow approved event", e);
+            throw new RuntimeException("Failed to publish workflow approved event", e);
+        }
     }
 
     public void publishWorkflowRejected(WorkflowSubject subject, List<ApprovalDecision> rejections) {
@@ -79,7 +87,13 @@ public class WorkflowEventProducer {
             event.put("rejectionComments", rejection.getComments());
         }
 
-        kafkaTemplate.send("workflow.rejected", subject.getWorkflowId(), event);
-        log.info("Published workflow rejected event to Kafka topic: workflow.rejected");
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            kafkaTemplate.send("workflow.rejected", subject.getWorkflowId(), payload);
+            log.info("Published workflow rejected event to Kafka topic: workflow.rejected");
+        } catch (Exception e) {
+            log.error("Failed to serialize workflow rejected event", e);
+            throw new RuntimeException("Failed to publish workflow rejected event", e);
+        }
     }
 }

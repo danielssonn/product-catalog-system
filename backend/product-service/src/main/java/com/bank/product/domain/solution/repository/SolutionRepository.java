@@ -14,6 +14,8 @@ import java.util.Optional;
 @Repository
 public interface SolutionRepository extends TenantAwareRepository<Solution, String> {
 
+    Optional<Solution> findByTenantIdAndId(String tenantId, String id);
+
     Optional<Solution> findByTenantIdAndSolutionId(String tenantId, String solutionId);
 
     List<Solution> findByTenantIdAndStatus(String tenantId, SolutionStatus status);

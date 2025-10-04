@@ -3,6 +3,7 @@ package com.bank.product.domain.solution.controller;
 import com.bank.product.client.dto.WorkflowSubmitRequest;
 import com.bank.product.domain.solution.dto.ConfigureSolutionRequest;
 import com.bank.product.domain.solution.dto.ConfigureSolutionResponse;
+import com.bank.product.domain.solution.dto.SolutionWorkflowStatusResponse;
 import com.bank.product.domain.solution.service.AsyncWorkflowService;
 import com.bank.product.domain.solution.service.SolutionService;
 import com.bank.product.domain.solution.model.Solution;
@@ -51,6 +52,10 @@ public class SolutionController {
         Solution solution = solutionService.createSolutionFromCatalog(
                 tenantId, userId, request);
 
+        // Set workflow submission status to PENDING before async call
+        solution.setWorkflowSubmissionStatus(com.bank.product.enums.WorkflowSubmissionStatus.PENDING_SUBMISSION);
+        solutionService.saveSolution(solution);
+
         // Build workflow metadata for rule evaluation
         Map<String, Object> entityMetadata = new HashMap<>();
         entityMetadata.put("solutionType", solution.getCategory());
@@ -86,17 +91,21 @@ public class SolutionController {
                     return null;
                 });
 
-        // Return immediately with 202 Accepted
+        // Return immediately with 202 Accepted and polling guidance
         ConfigureSolutionResponse response = ConfigureSolutionResponse.builder()
                 .solutionId(solution.getId())
                 .solutionName(solution.getName())
                 .status(solution.getStatus().name())
                 .workflowId(null) // Will be updated asynchronously
                 .workflowStatus("PENDING_SUBMISSION")
-                .message("Solution created. Workflow submission in progress. Check status via GET /api/v1/solutions/" + solution.getId())
+                .pollUrl("/api/v1/solutions/" + solution.getId() + "/workflow-status")
+                .pollIntervalMs(1000)  // Poll every second
+                .message("Solution created. Workflow submission in progress. Poll the workflow-status endpoint for updates.")
                 .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .header("Location", "/api/v1/solutions/" + solution.getId())
+                .body(response);
     }
 
     /**
@@ -180,6 +189,22 @@ public class SolutionController {
         log.info("Fetching solution {} for tenant {}", solutionId, tenantId);
         Solution solution = solutionService.getSolution(tenantId, solutionId);
         return ResponseEntity.ok(solution);
+    }
+
+    /**
+     * Get workflow submission status (lightweight endpoint for polling)
+     * Returns current workflow submission state and provides polling guidance
+     */
+    @GetMapping("/{solutionId}/workflow-status")
+    public ResponseEntity<SolutionWorkflowStatusResponse> getWorkflowStatus(
+            @RequestHeader("X-Tenant-ID") String tenantId,
+            @PathVariable String solutionId) {
+
+        log.debug("Fetching workflow status for solution {} (tenant: {})", solutionId, tenantId);
+
+        SolutionWorkflowStatusResponse status = solutionService.getWorkflowSubmissionStatus(tenantId, solutionId);
+
+        return ResponseEntity.ok(status);
     }
 
     @GetMapping
