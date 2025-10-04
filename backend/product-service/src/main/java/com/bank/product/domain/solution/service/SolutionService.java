@@ -1,6 +1,7 @@
 package com.bank.product.domain.solution.service;
 
 import com.bank.product.domain.solution.dto.ConfigureSolutionRequest;
+import com.bank.product.domain.solution.dto.SolutionWorkflowStatusResponse;
 import com.bank.product.domain.solution.model.Solution;
 import com.bank.product.domain.solution.model.SolutionStatus;
 import org.springframework.data.domain.Page;
@@ -41,4 +42,10 @@ public interface SolutionService {
      * @return number of documents updated
      */
     int rejectSolution(String solutionId);
+
+    /**
+     * Get workflow submission status for polling
+     * Returns current state and polling guidance
+     */
+    SolutionWorkflowStatusResponse getWorkflowSubmissionStatus(String tenantId, String solutionId);
 }

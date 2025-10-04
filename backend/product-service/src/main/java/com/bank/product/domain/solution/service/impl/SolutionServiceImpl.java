@@ -1,6 +1,7 @@
 package com.bank.product.domain.solution.service.impl;
 
 import com.bank.product.domain.solution.dto.ConfigureSolutionRequest;
+import com.bank.product.domain.solution.dto.SolutionWorkflowStatusResponse;
 import com.bank.product.domain.solution.repository.SolutionRepository;
 import com.bank.product.domain.solution.service.SolutionService;
 import com.bank.product.domain.solution.model.Solution;
@@ -25,7 +26,10 @@ public class SolutionServiceImpl implements SolutionService {
     @Override
     public Solution getSolution(String tenantId, String solutionId) {
         log.debug("Fetching solution {} for tenant {}", solutionId, tenantId);
-        return solutionRepository.findByTenantIdAndSolutionId(tenantId, solutionId)
+        // solutionId parameter here is actually the MongoDB _id (UUID)
+        // First try to find by id (UUID), then fall back to solutionId (generated ID)
+        return solutionRepository.findByTenantIdAndId(tenantId, solutionId)
+                .or(() -> solutionRepository.findByTenantIdAndSolutionId(tenantId, solutionId))
                 .orElseThrow(() -> new RuntimeException("Solution not found: " + solutionId));
     }
 
@@ -176,5 +180,51 @@ public class SolutionServiceImpl implements SolutionService {
         solution.setUpdatedBy("system");
         solutionRepository.save(solution);
         return 1;
+    }
+
+    @Override
+    public SolutionWorkflowStatusResponse getWorkflowSubmissionStatus(String tenantId, String solutionId) {
+        log.debug("Getting workflow submission status for solution: {} (tenant: {})", solutionId, tenantId);
+
+        Solution solution = getSolution(tenantId, solutionId);
+
+        SolutionWorkflowStatusResponse.SolutionWorkflowStatusResponseBuilder builder =
+            SolutionWorkflowStatusResponse.builder()
+                .solutionId(solution.getId())
+                .solutionStatus(solution.getStatus())
+                .workflowSubmissionStatus(solution.getWorkflowSubmissionStatus())
+                .workflowId(solution.getWorkflowId());
+
+        // If still pending submission, provide polling guidance
+        if (solution.getWorkflowSubmissionStatus() == com.bank.product.enums.WorkflowSubmissionStatus.PENDING_SUBMISSION) {
+            builder.pollUrl("/api/v1/solutions/" + solutionId + "/workflow-status")
+                   .pollIntervalMs(1000)  // Poll every second
+                   .message("Workflow submission in progress. Please poll this endpoint for updates.");
+        }
+
+        // If submitted successfully, include workflow metadata
+        if (solution.getWorkflowSubmissionStatus() == com.bank.product.enums.WorkflowSubmissionStatus.SUBMITTED) {
+            builder.approvalRequired(solution.getApprovalRequired())
+                   .requiredApprovals(solution.getRequiredApprovals())
+                   .approverRoles(solution.getApproverRoles())
+                   .sequential(solution.getSequential())
+                   .slaHours(solution.getSlaHours())
+                   .estimatedCompletion(solution.getEstimatedCompletion())
+                   .message("Workflow submitted successfully. Awaiting approvals.");
+        }
+
+        // If submission failed, include error details
+        if (solution.getWorkflowSubmissionStatus() == com.bank.product.enums.WorkflowSubmissionStatus.SUBMISSION_FAILED) {
+            builder.errorMessage(solution.getWorkflowErrorMessage())
+                   .retryAt(solution.getWorkflowRetryAt())
+                   .message("Workflow submission failed. Retry scheduled at: " + solution.getWorkflowRetryAt());
+        }
+
+        // If no workflow required (auto-approved)
+        if (solution.getWorkflowSubmissionStatus() == com.bank.product.enums.WorkflowSubmissionStatus.NOT_REQUIRED) {
+            builder.message("No workflow approval required. Solution is active.");
+        }
+
+        return builder.build();
     }
 }

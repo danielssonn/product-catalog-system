@@ -1,11 +1,13 @@
 package com.bank.product.model;
 
+import com.bank.product.enums.WorkflowSubmissionStatus;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -70,4 +72,27 @@ public class Solution {
     private String updatedBy;
 
     private Map<String, Object> metadata;
+
+    // Workflow-related fields
+    @Indexed
+    private String workflowId;
+
+    private WorkflowSubmissionStatus workflowSubmissionStatus;
+
+    private String workflowErrorMessage;
+
+    private Instant workflowRetryAt;
+
+    // Workflow metadata (populated after submission)
+    private Boolean approvalRequired;
+
+    private Integer requiredApprovals;
+
+    private List<String> approverRoles;
+
+    private Boolean sequential;
+
+    private Integer slaHours;
+
+    private Instant estimatedCompletion;
 }
