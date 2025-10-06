@@ -1,0 +1,36 @@
+# Configuration for Workflow Service with Kafka Events
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: workflow-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        isolation.level: read_committed
+
+# Kafka topics
+kafka:
+  topics:
+    solution-created: solution.created
+    workflow-completed: workflow.completed
+
+# Temporal configuration
+temporal:
+  workflows:
+    task-queue: workflow-task-queue
+    namespace: default
+
+# Workflow defaults
+workflow:
+  default-timeout-hours: 48

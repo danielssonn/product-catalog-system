@@ -1,0 +1,41 @@
+# Configuration for Outbox Pattern with Kafka
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all  # Wait for all replicas to acknowledge
+      retries: 3
+      properties:
+        enable.idempotence: true  # Exactly-once semantics
+    consumer:
+      group-id: product-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false  # Manual commit for transactional processing
+      properties:
+        isolation.level: read_committed  # Only read committed messages
+
+# Outbox publisher configuration
+outbox:
+  publisher:
+    enabled: true
+    poll-interval-ms: 100  # Poll every 100ms for low latency
+    batch-size: 10
+    max-retries: 10
+  cleanup:
+    enabled: true
+    retention-days: 7  # Keep published events for 7 days
+
+# Kafka topics
+kafka:
+  topics:
+    solution-created: solution.created
+    solution-status-changed: solution.status-changed
+    workflow-completed: workflow.completed
+
+# Enable scheduling for OutboxPublisher
+spring.scheduling.enabled: true

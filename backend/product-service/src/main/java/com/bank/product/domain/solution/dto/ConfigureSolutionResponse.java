@@ -30,5 +30,10 @@ public class ConfigureSolutionResponse {
     private boolean sequential;
     private int slaHours;
     private LocalDateTime estimatedCompletion;
+
+    // Polling guidance (for async workflow submission)
+    private String pollUrl;
+    private Integer pollIntervalMs;
+
     private String message;
 }
