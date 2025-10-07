@@ -60,6 +60,16 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
+# Spring AI Configuration (MCP)
+spring.ai:
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY:}
+    chat:
+      options:
+        model: claude-sonnet-4-5-20250929
+        temperature: 0.3
+        max-tokens: 4096
+
 # Workflow Configuration
 workflow:
   default-timeout-seconds: 3600
@@ -67,3 +77,14 @@ workflow:
   escalation:
     enabled: true
     check-interval-minutes: 30
+
+  # Validator Configuration
+  validators:
+    document-validator:
+      default-type: MCP  # Options: RULES_BASED, MCP, GRAPH_RAG
+      mcp:
+        enabled: ${MCP_ENABLED:true}
+        model: claude-sonnet-4-5-20250929
+        temperature: 0.3
+        max-tokens: 4096
+        timeout-ms: 10000

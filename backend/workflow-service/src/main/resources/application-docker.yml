@@ -26,6 +26,11 @@ product:
 server:
   port: 8089
 
+# Spring AI Configuration (MCP) for Docker
+spring.ai:
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY:}
+
 logging:
   level:
     root: INFO

@@ -47,6 +47,8 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <springdoc.version>2.7.0</springdoc.version>
         <temporal.version>1.26.2</temporal.version>
+        <spring-ai.version>1.0.0-M4</spring-ai.version>
+        <neo4j.version>5.27.0</neo4j.version>
     </properties>
 
     <dependencyManagement>
@@ -102,8 +104,39 @@
                 <artifactId>temporal-spring-boot-starter-alpha</artifactId>
                 <version>${temporal.version}</version>
             </dependency>
+
+            <!-- Spring AI for MCP integration -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-anthropic-spring-boot-starter</artifactId>
+                <version>${spring-ai.version}</version>
+            </dependency>
+
+            <!-- Neo4j for GraphRAG -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-data-neo4j</artifactId>
+            </dependency>
+
+            <dependency>
+                <groupId>org.neo4j</groupId>
+                <artifactId>neo4j</artifactId>
+                <version>${neo4j.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <!-- Add Spring AI milestone repository -->
+    <repositories>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <build>
         <pluginManagement>
