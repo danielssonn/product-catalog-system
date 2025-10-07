@@ -204,7 +204,22 @@ public class ServiceClass {
 - `ERROR`: Failures requiring immediate attention
 - `WARN`: Degraded operation, circuit breaker activations
 - `INFO`: Business events, state changes
-- `DEBUG`: Detailed flow for troubleshooting
+- `DEBUG`: Detailed flow for troubleshooting (NEVER in production)
+
+**Production Logging Configuration (Required):**
+```yaml
+# application.yml or application-docker.yml
+logging:
+  level:
+    root: INFO
+    com.bank.product: INFO                    # Your application packages
+    org.springframework: WARN                 # Reduce Spring framework noise
+    org.springframework.kafka: WARN           # Suppress Kafka connection spam
+    org.apache.kafka: WARN                    # Suppress Kafka client spam
+    org.mongodb.driver: WARN                  # Reduce MongoDB driver logs
+```
+
+**⚠️ CRITICAL: Never use DEBUG in production!** A single service with DEBUG logging filled 181GB of logs in hours, causing system-wide MongoDB crash. See [MONGODB_CRASH_FIX.md](../MONGODB_CRASH_FIX.md).
 
 ### 5. Multi-tenancy Standards ✅
 
@@ -308,6 +323,30 @@ services:
       start_period: 60s
 ```
 
+#### Log Truncation and Rotation (MANDATORY) ⚠️
+**ALL services MUST have log rotation configured to prevent disk exhaustion.**
+
+```yaml
+# docker-compose.yml
+services:
+  service-name:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"    # Maximum 10MB per log file
+        max-file: "3"      # Keep 3 rotated files (30MB total per service)
+```
+
+**Why This Matters:**
+- Without log rotation, container logs can fill Docker VM disk space
+- A single service with verbose logging can crash the entire system
+- MongoDB and other databases require disk space for checkpoints/snapshots
+- System-wide disk exhaustion causes cascading failures
+
+**Impact:** Maximum 30MB of logs per service (10MB × 3 files)
+
+**See:** [MONGODB_CRASH_FIX.md](../MONGODB_CRASH_FIX.md) for details on a production incident caused by missing log rotation.
+
 ### 8. Documentation Standards ✅
 
 #### Required Documentation
@@ -329,6 +368,8 @@ services:
 - ✅ API versioning (/api/v1/)
 - ✅ Actuator endpoints for observability
 - ✅ **Automatic tenant isolation** with TenantContext + TenantInterceptor
+- ✅ **Log rotation** (10MB × 3 files) - prevents disk exhaustion
+- ✅ **Production log levels** (INFO/WARN) - no DEBUG spam
 - ✅ Comprehensive test scripts
 
 ## 📚 Related Documentation
