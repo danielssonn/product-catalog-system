@@ -85,6 +85,19 @@
             <artifactId>mapstruct</artifactId>
         </dependency>
 
+        <!-- Spring AI Anthropic (for MCP) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-anthropic-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Neo4j (for GraphRAG) - Commented out until Phase 3
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-neo4j</artifactId>
+        </dependency>
+        -->
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -167,6 +167,7 @@ services:
       SECURITY_PASSWORD: ${SECURITY_PASSWORD:-admin123}
       PRODUCT_SERVICE_USERNAME: ${PRODUCT_SERVICE_USERNAME:-admin}
       PRODUCT_SERVICE_PASSWORD: ${PRODUCT_SERVICE_PASSWORD:-admin123}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     networks:
       - product-catalog-network
     healthcheck:
