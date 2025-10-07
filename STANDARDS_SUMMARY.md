@@ -85,6 +85,20 @@ log.info("Action performed: entity={}, id={}", entityType, entityId);
 log.error("Operation failed: entity={}, error={}", entityId, e.getMessage(), e);
 ```
 
+**Production Log Levels (application.yml):**
+```yaml
+logging:
+  level:
+    root: INFO
+    com.bank.product: INFO
+    org.springframework: WARN
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.mongodb.driver: WARN
+```
+
+⚠️ **Never use DEBUG in production** - can fill 100GB+ of logs in hours
+
 ---
 
 ## 💾 5. Data Layer
@@ -139,6 +153,7 @@ public class Resource {
 |-----------|-----------|------|
 | **Multi-stage Dockerfile** | ✅ Yes | `Dockerfile` |
 | **Health Check** | ✅ Yes | `docker-compose.yml` |
+| **Log Rotation** | ✅ Yes | `docker-compose.yml` (10m × 3 files) |
 | **Environment Variables** | ✅ Yes | `docker-compose.yml` |
 | **Network** | ✅ Yes | `product-catalog-network` |
 
@@ -155,6 +170,36 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+### Docker Compose Template
+```yaml
+services:
+  service-name:
+    build:
+      context: ./backend
+      dockerfile: service-name/Dockerfile
+    container_name: service-name
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"    # Maximum 10MB per log file
+        max-file: "3"      # Keep 3 rotated files (30MB total)
 ```
 
 ---

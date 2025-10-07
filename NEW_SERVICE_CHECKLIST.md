@@ -96,6 +96,9 @@ Use this checklist when creating a new microservice to ensure compliance with al
 - [ ] Log all external service calls
 - [ ] Log all errors with stack traces
 - [ ] Use appropriate log levels (ERROR, WARN, INFO, DEBUG)
+- [ ] **Configure production log levels (MANDATORY)**: INFO or WARN only (NEVER DEBUG)
+- [ ] Add log level config for Spring, Kafka, MongoDB to WARN
+- [ ] Test: Verify log output is not excessive
 
 ### OpenAPI Documentation
 - [ ] Add `springdoc-openapi-starter-webmvc-ui` dependency
@@ -165,6 +168,7 @@ Use this checklist when creating a new microservice to ensure compliance with al
 - [ ] Add service to `docker-compose.yml`
 - [ ] Configure depends_on for dependencies
 - [ ] Add health check with curl to `/actuator/health`
+- [ ] **Add log rotation (MANDATORY)**: `max-size: "10m"`, `max-file: "3"`
 - [ ] Pass environment variables
 - [ ] Expose service port
 - [ ] Connect to `product-catalog-network`
