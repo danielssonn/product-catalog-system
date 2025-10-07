@@ -34,5 +34,6 @@ management:
 
 logging:
   level:
-    com.bank.product.notification: DEBUG
-    org.springframework.kafka: INFO
+    com.bank.product.notification: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN

@@ -5,3 +5,9 @@ spring:
 
   kafka:
     bootstrap-servers: kafka:29092
+
+logging:
+  level:
+    com.bank.product.notification: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
