@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: capital-markets-party-service
+
+  data:
+    mongodb:
+      host: ${MONGODB_HOST:localhost}
+      port: ${MONGODB_PORT:27018}
+      database: capital_markets
+      username: ${MONGODB_USER:capitaluser}
+      password: ${MONGODB_PASSWORD:capitalpass}
+      authentication-database: admin
+
+server:
+  port: 8085
+
+logging:
+  level:
+    com.bank.capitalmarkets: DEBUG
+    org.springframework.data.mongodb: INFO

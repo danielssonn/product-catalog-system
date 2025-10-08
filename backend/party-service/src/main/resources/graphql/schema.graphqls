@@ -1,0 +1,263 @@
+# GraphQL Schema for Federated Party Model
+
+scalar DateTime
+scalar LocalDate
+scalar JSON
+
+# Base Party interface
+interface Party {
+    federatedId: ID!
+    partyType: PartyType!
+    status: PartyStatus!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    confidence: Float
+    sourcedFrom: [SourceRecord!]!
+    masterSource: SourceRecord
+}
+
+# Organization
+type Organization implements Party {
+    federatedId: ID!
+    partyType: PartyType!
+    status: PartyStatus!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    confidence: Float
+
+    # Organization specific fields
+    name: String!
+    legalName: String!
+    lei: String
+    registrationNumber: String
+    jurisdiction: String
+    incorporationDate: LocalDate
+    industryCode: String
+    industry: String
+    tier: String
+    riskRating: String
+    amlStatus: String
+    website: String
+    phoneNumber: String
+    email: String
+    employeeCount: Int
+    annualRevenue: Float
+
+    # Relationships
+    subsidiaries(depth: Int): [Organization!]!
+    parent: Organization
+    ultimateParent: Organization
+    operatesOnBehalfOf: [Organization!]!
+    beneficialOwners(threshold: Float): [Individual!]!
+    legalEntities: [LegalEntity!]!
+
+    # Provenance
+    sourcedFrom: [SourceRecord!]!
+    masterSource: SourceRecord
+    lastSyncedAt: DateTime
+
+    # Computed
+    totalSubsidiaries: Int!
+    jurisdictions: [String!]!
+    consolidatedRiskRating: String
+}
+
+# Legal Entity
+type LegalEntity implements Party {
+    federatedId: ID!
+    partyType: PartyType!
+    status: PartyStatus!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    confidence: Float
+
+    # Legal Entity specific
+    entityId: String!
+    entityType: EntityType!
+    legalName: String!
+    lei: String
+    taxId: String
+    registrationNumber: String
+    jurisdiction: String
+    registeredAddress: Address
+    mailingAddress: Address
+
+    # Relationships
+    parentOrganization: Organization
+    owners: [OwnershipInfo!]!
+    beneficialOwners(threshold: Float): [BeneficialOwnership!]!
+    authorizedSigners: [Individual!]!
+    officers: [Individual!]!
+    boardMembers: [Individual!]!
+
+    # Provenance
+    sourcedFrom: [SourceRecord!]!
+    masterSource: SourceRecord
+}
+
+# Individual
+type Individual implements Party {
+    federatedId: ID!
+    partyType: PartyType!
+    status: PartyStatus!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    confidence: Float
+
+    # Party interface fields
+    sourcedFrom: [SourceRecord!]!
+    masterSource: SourceRecord
+
+    # Individual specific
+    firstName: String!
+    lastName: String!
+    fullName: String!
+    dateOfBirth: LocalDate
+    nationality: String
+    residency: String
+    pepStatus: Boolean!
+    email: String
+    phoneNumber: String
+
+    # Relationships
+    beneficialOwnerships: [BeneficialOwnership!]!
+    controlledEntities: [Party!]!
+}
+
+# Supporting types
+type Address {
+    addressLine1: String
+    addressLine2: String
+    city: String
+    stateProvince: String
+    postalCode: String
+    country: String
+    countryCode: String
+    addressType: String
+}
+
+type SourceRecord {
+    id: ID!
+    sourceSystem: String!
+    sourceId: String!
+    sourceData: JSON
+    syncedAt: DateTime!
+    version: Int!
+    masterSource: Boolean!
+    qualityScore: Float!
+}
+
+type OwnershipInfo {
+    owner: Party!
+    ownershipPercentage: Float!
+    direct: Boolean!
+    votingRights: Float
+    effectiveDate: LocalDate
+}
+
+type BeneficialOwnership {
+    owner: Individual!
+    ownershipPercentage: Float!
+    controlLevel: String!
+    ubo: Boolean!
+    verificationDate: LocalDate
+    ownershipPath: String
+}
+
+# Enums
+enum PartyType {
+    ORGANIZATION
+    LEGAL_ENTITY
+    INDIVIDUAL
+    SUBSIDIARY
+    SPV
+    TRUST
+    GOVERNMENT_ENTITY
+}
+
+enum PartyStatus {
+    ACTIVE
+    INACTIVE
+    MERGED
+    DUPLICATE
+    UNDER_REVIEW
+    PENDING_DELETION
+}
+
+enum EntityType {
+    CORPORATION
+    LLC
+    LLP
+    PARTNERSHIP
+    LIMITED_PARTNERSHIP
+    SOLE_PROPRIETORSHIP
+    TRUST
+    PLC
+    PRIVATE_LIMITED
+    SPV
+    NON_PROFIT
+    GOVERNMENT
+}
+
+# Queries
+type Query {
+    # Find party
+    party(federatedId: ID!): Party
+    partyByLei(lei: String!): Party
+    searchParties(name: String!): [Organization!]!
+
+    # Hierarchy
+    organizationHierarchy(rootId: ID!, depth: Int): Organization
+    ultimateParent(childId: ID!): Organization
+    subsidiaries(parentId: ID!): [Organization!]!
+
+    # Beneficial ownership
+    ultimateBeneficialOwners(entityId: ID!): [BeneficialOwnership!]!
+    ownershipChain(entityId: ID!): [OwnershipInfo!]!
+
+    # Relationship paths
+    relationshipPath(org1Id: ID!, org2Id: ID!): [RelationshipPath!]!
+
+    # Cross-system
+    partiesInMultipleSystems(minSystems: Int): [Party!]!
+
+    # Data quality
+    duplicateCandidates(threshold: Float): [DuplicateSet!]!
+}
+
+type RelationshipPath {
+    path: [Party!]!
+    relationshipTypes: [String!]!
+    hops: Int!
+}
+
+type DuplicateSet {
+    party1: Party!
+    party2: Party!
+    similarityScore: Float!
+    matchingFields: [String!]!
+}
+
+# Mutations
+type Mutation {
+    # Entity resolution
+    mergeParties(sourceId: ID!, targetId: ID!, approvedBy: String!): Party!
+    markNotDuplicate(partyId: ID!, candidateId: ID!, reviewedBy: String!): Boolean!
+
+    # Sync
+    syncParty(sourceSystem: String!, sourceId: String!): SyncResult!
+    fullSync(sourceSystem: String!): SyncResult!
+}
+
+type SyncResult {
+    action: ResolutionAction!
+    resultParty: Party
+    matchedParty: Party
+    matchScore: Float
+}
+
+enum ResolutionAction {
+    CREATED
+    MERGED
+    NEEDS_REVIEW
+}
