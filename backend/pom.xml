@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.0</version>
+        <version>3.3.5</version>
         <relativePath/>
     </parent>
 
@@ -29,6 +29,7 @@
         <module>commercial-banking-party-service</module>
         <module>capital-markets-party-service</module>
         <module>party-service</module>
+        <module>api-gateway</module>
     </modules>
 
     <!-- Disabled modules - add progressively as they are implemented:
@@ -37,7 +38,6 @@
          <module>audit-service</module>
          <module>event-publisher-service</module>
          <module>tenant-service</module>
-         <module>api-gateway</module>
     -->
 
     <properties>

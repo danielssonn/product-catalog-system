@@ -1,7 +1,7 @@
 # Documentation Index
 
-**Last Updated**: January 15, 2025
-**Total Active Documents**: 33 essential guides
+**Last Updated**: January 10, 2025
+**Total Active Documents**: 37 essential guides
 
 ---
 
@@ -44,6 +44,18 @@
 ---
 
 ## 🏗️ Technical Architecture
+
+### Multi-Channel API Gateway
+**→ [API_GATEWAY_ARCHITECTURE.md](API_GATEWAY_ARCHITECTURE.md)** - THE comprehensive guide
+- 6 channel types (Public API, Host-to-Host, ERP, Portal, Salesforce, Admin)
+- Channel-specific authentication, rate limiting, transformation
+- Circuit breakers, retry, resilience patterns
+- Complete request flow diagrams
+
+**Quick Start**:
+- [MULTI_CHANNEL_QUICK_START.md](MULTI_CHANNEL_QUICK_START.md) - 5-minute setup
+- [API_GATEWAY_SUMMARY.md](API_GATEWAY_SUMMARY.md) - Implementation summary
+- [backend/api-gateway/README.md](backend/api-gateway/README.md) - Service docs
 
 ### Patterns & Design
 - [API_VERSIONING_DESIGN.md](API_VERSIONING_DESIGN.md) - API versioning patterns

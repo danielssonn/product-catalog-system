@@ -1,0 +1,25 @@
+[
+  {
+    "catalogProductId": "premium-checking-001",
+    "solutionName": "My Premium Checking JSON",
+    "description": "Custom premium checking from JSON file",
+    "customFees": {
+      "MONTHLY": 15.00,
+      "OVERDRAFT": 30.00
+    },
+    "riskLevel": "LOW",
+    "pricingVariance": 3.0,
+    "businessJustification": "JSON bulk upload test",
+    "priority": "MEDIUM"
+  },
+  {
+    "catalogProductId": "high-yield-savings-001",
+    "solutionName": "High Yield Savings JSON",
+    "description": "Enhanced savings account from JSON",
+    "customInterestRate": 4.0,
+    "riskLevel": "LOW",
+    "pricingVariance": 10.0,
+    "businessJustification": "Promotional offering",
+    "priority": "HIGH"
+  }
+]

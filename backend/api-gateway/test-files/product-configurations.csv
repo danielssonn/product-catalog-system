@@ -1,0 +1,4 @@
+catalogProductId,solutionName,description,customInterestRate,monthlyFee,overdraftFee,riskLevel,pricingVariance,businessJustification,priority
+premium-checking-001,My Premium Checking,Custom premium checking for VIP customer,,,25,LOW,2.5,VIP customer tier,HIGH
+high-yield-savings-001,High Yield Savings Plus,Enhanced savings with higher APY,3.5,,,LOW,8.0,Promotional rate for new customers,MEDIUM
+premium-checking-001,Business Premium Checking,Premium checking for small business,,,30,MEDIUM,5.0,Small business customer,MEDIUM
