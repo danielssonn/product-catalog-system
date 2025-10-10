@@ -324,6 +324,71 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Redis (for API Gateway rate limiting)
+  redis:
+    image: redis:7-alpine
+    container_name: product-catalog-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # API Gateway (Multi-Channel)
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: api-gateway/Dockerfile
+    container_name: product-catalog-api-gateway
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      workflow-service:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MONGODB_URI: mongodb://${MONGODB_USERNAME:-admin}:${MONGODB_PASSWORD:-admin123}@mongodb:27017/product_catalog_db?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      PRODUCT_SERVICE_URL: http://product-service:8081
+      WORKFLOW_SERVICE_URL: http://workflow-service:8089
+      PARTY_SERVICE_URL: http://party-service:8083
+      LOG_LEVEL_APP: INFO
+      LOG_LEVEL_GATEWAY: INFO
+      CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:3000
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   product-catalog-network:
     driver: bridge

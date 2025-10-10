@@ -1,32 +1,43 @@
-FROM maven:3.9-eclipse-temurin-21 AS build
+# Multi-stage build for API Gateway
+FROM maven:3.9-eclipse-temurin-21 AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# Copy parent pom and common module
+# Copy parent POM and common module first (for caching)
 COPY pom.xml .
-COPY common/pom.xml ./common/
+COPY common ./common
+
+# Install parent POM first, then build common module
+RUN mvn -N install && \
+    mvn -f common/pom.xml clean install -DskipTests
+
+# Copy API Gateway source
 COPY api-gateway/pom.xml ./api-gateway/
-
-# Download dependencies
-RUN mvn dependency:go-offline -B
-
-# Copy source code
-COPY common/src ./common/src
 COPY api-gateway/src ./api-gateway/src
 
-# Build the application
-RUN mvn clean package -DskipTests -pl api-gateway -am
+# Build the application (skip tests for faster builds)
+RUN mvn -f api-gateway/pom.xml clean package -DskipTests
 
 # Runtime stage
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-COPY --from=build /app/api-gateway/target/*.jar app.jar
+# Copy the built JAR from builder stage
+COPY --from=builder /build/api-gateway/target/*.jar app.jar
 
+# Expose port
 EXPOSE 8080
 
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run the application
+ENTRYPOINT ["java", \
+    "-Xms512m", \
+    "-Xmx1024m", \
+    "-XX:+UseG1GC", \
+    "-XX:MaxGCPauseMillis=200", \
+    "-Dspring.profiles.active=docker", \
+    "-jar", "app.jar"]
