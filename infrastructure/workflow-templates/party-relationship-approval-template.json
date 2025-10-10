@@ -1,0 +1,95 @@
+{
+  "templateId": "party-relationship-approval",
+  "templateName": "Party Relationship Approval Workflow",
+  "templateDescription": "Maker-checker approval workflow for creating party relationships (e.g., manages on behalf of)",
+  "entityType": "PARTY_RELATIONSHIP",
+  "version": "1.0",
+  "status": "PUBLISHED",
+  "approvalDecisionTable": {
+    "tableName": "Party Relationship Approval Rules",
+    "hitPolicy": "FIRST",
+    "inputs": [
+      {
+        "inputName": "relationshipType",
+        "inputLabel": "Relationship Type",
+        "inputExpression": "entityMetadata.relationshipType"
+      },
+      {
+        "inputName": "assetsUnderManagement",
+        "inputLabel": "Assets Under Management (USD)",
+        "inputExpression": "entityMetadata.assetsUnderManagement"
+      },
+      {
+        "inputName": "authorityLevel",
+        "inputLabel": "Authority Level",
+        "inputExpression": "entityMetadata.authorityLevel"
+      }
+    ],
+    "outputs": [
+      {
+        "outputName": "requiredApprovers",
+        "outputLabel": "Required Approvers"
+      },
+      {
+        "outputName": "approvalStrategy",
+        "outputLabel": "Approval Strategy"
+      }
+    ],
+    "rules": [
+      {
+        "ruleId": "rule-1",
+        "ruleDescription": "High-value FULL authority relationships require both Compliance and Senior Management",
+        "conditions": [
+          "authorityLevel == 'FULL'",
+          "assetsUnderManagement > 1000000000"
+        ],
+        "outputs": {
+          "requiredApprovers": "COMPLIANCE_OFFICER,SENIOR_MANAGEMENT",
+          "approvalStrategy": "ALL"
+        }
+      },
+      {
+        "ruleId": "rule-2",
+        "ruleDescription": "FULL authority relationships require Compliance approval",
+        "conditions": [
+          "authorshipLevel == 'FULL'"
+        ],
+        "outputs": {
+          "requiredApprovers": "COMPLIANCE_OFFICER",
+          "approvalStrategy": "ALL"
+        }
+      },
+      {
+        "ruleId": "rule-3",
+        "ruleDescription": "High-value DISCRETIONARY relationships require Risk Manager",
+        "conditions": [
+          "authorityLevel == 'DISCRETIONARY'",
+          "assetsUnderManagement > 500000000"
+        ],
+        "outputs": {
+          "requiredApprovers": "RISK_MANAGER",
+          "approvalStrategy": "ALL"
+        }
+      },
+      {
+        "ruleId": "rule-4",
+        "ruleDescription": "Default: Operations Manager approval",
+        "conditions": [],
+        "outputs": {
+          "requiredApprovers": "OPERATIONS_MANAGER",
+          "approvalStrategy": "ALL"
+        }
+      }
+    ]
+  },
+  "callbackHandlers": {
+    "onApproved": "relationshipApprovalHandler",
+    "onRejected": "relationshipRejectionHandler"
+  },
+  "timeoutSeconds": 172800,
+  "escalationRule": {
+    "escalateAfterSeconds": 86400,
+    "escalateTo": "SENIOR_MANAGEMENT",
+    "maxEscalations": 2
+  }
+}

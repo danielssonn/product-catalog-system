@@ -137,11 +137,22 @@ public class ManagesOnBehalfOfRelationship {
      */
     private String notes;
 
+    /**
+     * Workflow ID for approval tracking
+     */
+    private String workflowId;
+
+    /**
+     * Workflow status
+     */
+    private String workflowStatus;
+
     public ManagesOnBehalfOfRelationship() {
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
         this.status = RelationshipStatus.PENDING;
         this.authorityLevel = AuthorityLevel.LIMITED;
+        this.workflowStatus = "PENDING_APPROVAL";
     }
 
     public enum ManagementType {

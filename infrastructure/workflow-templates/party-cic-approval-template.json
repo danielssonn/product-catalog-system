@@ -1,0 +1,99 @@
+{
+  "templateId": "party-cic-approval",
+  "templateName": "Party Change in Circumstance (CIC) Approval",
+  "templateDescription": "Workflow for approving material changes to party master data from source systems",
+  "entityType": "PARTY_CHANGE",
+  "version": "1.0",
+  "status": "PUBLISHED",
+  "approvalDecisionTable": {
+    "tableName": "Party CIC Approval Rules",
+    "hitPolicy": "FIRST",
+    "inputs": [
+      {
+        "inputName": "changeType",
+        "inputLabel": "Change Type",
+        "inputExpression": "entityMetadata.changeType"
+      },
+      {
+        "inputName": "sourceSystem",
+        "inputLabel": "Source System",
+        "inputExpression": "entityMetadata.sourceSystem"
+      }
+    ],
+    "outputs": [
+      {
+        "outputName": "requiredApprovers",
+        "outputLabel": "Required Approvers"
+      },
+      {
+        "outputName": "approvalStrategy",
+        "outputLabel": "Approval Strategy"
+      }
+    ],
+    "rules": [
+      {
+        "ruleId": "rule-1",
+        "ruleDescription": "Control changes require both Compliance and Risk approval",
+        "conditions": [
+          "changeType == 'PARTY_CONTROL_CHANGE'"
+        ],
+        "outputs": {
+          "requiredApprovers": "COMPLIANCE_OFFICER,RISK_MANAGER",
+          "approvalStrategy": "ALL"
+        }
+      },
+      {
+        "ruleId": "rule-2",
+        "ruleDescription": "Risk rating changes require Risk Manager approval",
+        "conditions": [
+          "changeType == 'PARTY_RISK_RATING_CHANGED'"
+        ],
+        "outputs": {
+          "requiredApprovers": "RISK_MANAGER",
+          "approvalStrategy": "ALL"
+        }
+      },
+      {
+        "ruleId": "rule-3",
+        "ruleDescription": "Status changes to SUSPENDED/TERMINATED require Compliance",
+        "conditions": [
+          "changeType == 'PARTY_STATUS_CHANGED'"
+        ],
+        "outputs": {
+          "requiredApprovers": "COMPLIANCE_OFFICER",
+          "approvalStrategy": "ALL"
+        }
+      },
+      {
+        "ruleId": "rule-4",
+        "ruleDescription": "LEI and Jurisdiction changes require Operations Manager",
+        "conditions": [
+          "changeType == 'PARTY_LEI_CHANGED' || changeType == 'PARTY_JURISDICTION_CHANGED'"
+        ],
+        "outputs": {
+          "requiredApprovers": "OPERATIONS_MANAGER",
+          "approvalStrategy": "ALL"
+        }
+      },
+      {
+        "ruleId": "rule-5",
+        "ruleDescription": "Default: Operations Manager approval",
+        "conditions": [],
+        "outputs": {
+          "requiredApprovers": "OPERATIONS_MANAGER",
+          "approvalStrategy": "ALL"
+        }
+      }
+    ]
+  },
+  "callbackHandlers": {
+    "onApproved": "partyChangeApprovalHandler",
+    "onRejected": "partyChangeRejectionHandler"
+  },
+  "timeoutSeconds": 86400,
+  "escalationRule": {
+    "escalateAfterSeconds": 43200,
+    "escalateTo": "SENIOR_MANAGEMENT",
+    "maxEscalations": 2
+  }
+}

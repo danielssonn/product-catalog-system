@@ -61,6 +61,146 @@ A federated party management system that unifies multiple source party systems (
 
 ## Neo4j Graph Model
 
+### Concrete Party Graph Example
+
+This example shows real-world party relationships in the federated graph:
+
+```
+                    ┌─────────────────────────────────┐
+                    │     JPMorgan Chase & Co.        │
+                    │   (Organization Node)           │
+                    │   - federatedId: fed-jpm-001    │
+                    │   - legalName: "JPMorgan..."    │
+                    │   - lei: "8I5DZWZKVSZI1NUHU748"│
+                    │   - tier: "TIER_1"              │
+                    │   - riskRating: "LOW"           │
+                    └───────────┬─────────────────────┘
+                                │
+                ┌───────────────┴────────────────┐
+                │ PARENT_OF                      │
+                │ ownership_percentage: 100      │
+                │ source_system: COMMERCIAL_BANKING│
+                ▼                                │
+┌───────────────────────────────┐               │
+│  JPMorgan Securities LLC      │               │
+│  (LegalEntity Node)           │               │
+│  - federatedId: fed-jps-001   │               │
+│  - entityType: "LLC"          │               │
+│  - lei: "ZBUT11V806EZRVTWZ48"│               │
+│  - registeredAddress: {...}   │               │
+└────────────┬──────────────────┘               │
+             │                                  │
+             │ OPERATES_ON_BEHALF_OF            │
+             │ authority_level: "TRADING"       │
+             │ scope: "SECURITIES_TRADING"      │
+             │ source_systems: [                │
+             │   COMMERCIAL_BANKING,            │
+             │   CAPITAL_MARKETS                │
+             │ ]                                │
+             │ valid_from: 2020-01-01           │
+             │ valid_to: 2030-12-31             │
+             ▼                                  │
+┌──────────────────────────────┐               │
+│   Microsoft Corporation      │               │
+│   (Organization Node)        │               │
+│   - federatedId: fed-msft-001│               │
+│   - legalName: "Microsoft..."│               │
+│   - lei: "INR2EJN1ERAN0W5ZP97"│              │
+│   - industry: "334111" (NAICS)│              │
+└────────┬─────────────────────┘               │
+         │                                     │
+         │ BENEFICIAL_OWNER_OF                 │
+         │ ownership_percentage: 7.5           │
+         │ control_level: "ECONOMIC"           │
+         │ ubo: false                          │
+         ▼                                     │
+┌─────────────────────────────┐               │
+│   Vanguard Group, Inc.      │               │
+│   (Organization Node)       │               │
+│   - federatedId: fed-van-001│               │
+│   - name: "The Vanguard..." │               │
+│   - lei: "HNOKBY7SYSIMZ..."  │               │
+└────────────────┬────────────┘               │
+                 │                             │
+      ┌──────────┴──────────┐                 │
+      │ PARENT_OF           │                 │
+      │ ownership: 100      │                 │
+      ▼                     ▼                 │
+┌──────────────┐      ┌──────────────┐       │
+│ John Doe     │      │ Jane Smith   │       │
+│ (Individual) │      │ (Individual) │       │
+│ - federatedId│      │ - federatedId│       │
+│   fed-jd-001 │      │   fed-js-001 │       │
+│ - pepStatus: │      │ - pepStatus: │       │
+│   false      │      │   false      │       │
+└──────────────┘      └──────────────┘       │
+      │                     │                 │
+      └──────────┬──────────┘                 │
+                 │ AUTHORIZED_SIGNER          │
+                 │ authority_limits: $10M     │
+                 │ start_date: 2018-06-01     │
+                 ▼                            │
+         ┌───────────────────┐               │
+         │  ABC Corporation  │◄──────────────┘
+         │  (LegalEntity)    │    PROVIDES_SERVICES_TO
+         │  - federatedId:   │    service_type: "TREASURY"
+         │    fed-abc-001    │    relationship_manager: "RM-123"
+         │  - taxId: ***     │    since: 2018-06-01
+         │  - tier: "TIER_2" │
+         └───────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   DATA PROVENANCE LAYER                      │
+├─────────────────────────────────────────────────────────────┤
+│  JPMorgan Chase ──SOURCED_FROM→ SourceRecord                │
+│    { federatedId: "fed-jpm-001",                            │
+│      sourceSystem: "COMMERCIAL_BANKING",                    │
+│      sourceId: "CB-12345",                                  │
+│      master_flag: true,                                     │
+│      syncedAt: 2025-01-15T10:00:00Z }                       │
+│                                                             │
+│  JPMorgan Chase ──SOURCED_FROM→ SourceRecord                │
+│    { federatedId: "fed-jpm-001",                            │
+│      sourceSystem: "CAPITAL_MARKETS",                       │
+│      sourceId: "CM-67890",                                  │
+│      master_flag: false,                                    │
+│      syncedAt: 2025-01-15T10:00:00Z }                       │
+│                                                             │
+│  → Federated Party = Merge of both sources                  │
+│    Commercial Banking is "master" for conflicts             │
+└─────────────────────────────────────────────────────────────┘
+
+GRAPH QUERIES ENABLED BY THIS MODEL:
+
+1. Find all subsidiaries of JPMorgan:
+   MATCH (p:Organization {federatedId: 'fed-jpm-001'})-[:PARENT_OF*]->(sub)
+   RETURN sub
+
+2. Find who operates on behalf of Microsoft:
+   MATCH (agent)-[:OPERATES_ON_BEHALF_OF]->(principal {federatedId: 'fed-msft-001'})
+   RETURN agent
+
+3. Trace beneficial ownership chain for Microsoft:
+   MATCH path = (owner:Individual)-[:BENEFICIAL_OWNER_OF*]->(org {federatedId: 'fed-msft-001'})
+   RETURN path, owner
+
+4. Find authorized signers for ABC Corp:
+   MATCH (person:Individual)-[r:AUTHORIZED_SIGNER]->(entity {federatedId: 'fed-abc-001'})
+   RETURN person, r.authority_limits
+
+5. Check data provenance (which source system?):
+   MATCH (party {federatedId: 'fed-jpm-001'})-[:SOURCED_FROM]->(source:SourceRecord)
+   RETURN source.sourceSystem, source.sourceId, source.master_flag
+
+6. Find all entities with relationships from both systems:
+   MATCH (p:Party)-[:OPERATES_ON_BEHALF_OF]->(o)
+   WHERE 'COMMERCIAL_BANKING' IN p.source_systems
+     AND 'CAPITAL_MARKETS' IN p.source_systems
+   RETURN p, o
+```
+
+---
+
 ### Node Types
 
 #### 1. Party (Abstract/Label)
@@ -196,6 +336,198 @@ Source Data → Candidate Generation → Scoring → Threshold Decision
                                    Create MERGED_FROM         Create DUPLICATES
                                    relationship               relationship
 ```
+
+### Entity Resolution Flow - Detailed Example
+
+**SCENARIO**: Commercial Banking and Capital Markets both have "JPMorgan Chase" in their systems
+
+```
+┌──────────────────────────────────┐  ┌──────────────────────────────┐
+│  Source: Commercial Banking      │  │  Source: Capital Markets     │
+│  Party API                       │  │  Counterparty API            │
+├──────────────────────────────────┤  ├──────────────────────────────┤
+│  ID: CB-12345                    │  │  ID: CM-67890                │
+│  Name: "JPMorgan Chase & Co."    │  │  Name: "J.P. Morgan Chase"   │
+│  LEI: "8I5DZWZKVSZI1NUHU748"    │  │  LEI: "8I5DZWZKVSZI1NUHU748" │
+│  Jurisdiction: "Delaware"        │  │  Country: "USA"              │
+│  Address: "383 Madison Ave, NY"  │  │  Address: "383 Madison, NYC" │
+│  Tier: "TIER_1"                  │  │  Risk: "LOW"                 │
+└────────────┬─────────────────────┘  └────────────┬─────────────────┘
+             │                                     │
+             │ Kafka Event: PARTY_UPDATED         │
+             │                                     │
+             └──────────────┬──────────────────────┘
+                            │
+                            ▼
+              ┌────────────────────────────┐
+              │ Entity Resolution Service  │
+              │ Candidate Generation       │
+              └──────────────┬─────────────┘
+                             │
+                             ▼
+         ┌───────────────────────────────────────┐
+         │ STAGE 1: Exact Match Checks           │
+         ├───────────────────────────────────────┤
+         │                                       │
+         │ 1. LEI Match?                         │
+         │    CB: "8I5DZWZKVSZI1NUHU748"        │
+         │    CM: "8I5DZWZKVSZI1NUHU748"        │
+         │    ✓ EXACT MATCH (100% confidence)   │
+         │                                       │
+         │ → Skip fuzzy matching                 │
+         │ → Auto-merge candidate                │
+         └───────────────┬───────────────────────┘
+                         │
+                         ▼
+         ┌───────────────────────────────────────┐
+         │ STAGE 2: Similarity Scoring           │
+         ├───────────────────────────────────────┤
+         │ (Only if no exact match)              │
+         │                                       │
+         │ • Name Similarity (Levenshtein):     │
+         │   "JPMorgan Chase & Co." vs          │
+         │   "J.P. Morgan Chase"                │
+         │   Score: 0.88 (88%)                  │
+         │                                       │
+         │ • Address Similarity (normalized):    │
+         │   "383 Madison Ave, NY" vs           │
+         │   "383 Madison, NYC"                 │
+         │   Score: 0.90 (90%)                  │
+         │                                       │
+         │ • Jurisdiction Match:                 │
+         │   "Delaware" vs "USA"                │
+         │   Score: 0.50 (partial)              │
+         │                                       │
+         │ Weighted Score: 0.85                  │
+         └───────────────┬───────────────────────┘
+                         │
+                         ▼
+         ┌───────────────────────────────────────┐
+         │ STAGE 3: Threshold Decision           │
+         ├───────────────────────────────────────┤
+         │                                       │
+         │  Similarity Score: 1.00 (LEI match)  │
+         │                                       │
+         │  Thresholds:                          │
+         │    >= 0.95: Auto-merge               │
+         │    0.75-0.95: Manual review          │
+         │    < 0.75: Not a duplicate           │
+         │                                       │
+         │  Decision: AUTO-MERGE ✓              │
+         └───────────────┬───────────────────────┘
+                         │
+                         ▼
+         ┌───────────────────────────────────────┐
+         │ STAGE 4: Conflict Resolution          │
+         ├───────────────────────────────────────┤
+         │                                       │
+         │ Field-by-field merge strategy:        │
+         │                                       │
+         │ • federatedId: NEW UUID               │
+         │   → "fed-jpm-001"                    │
+         │                                       │
+         │ • name: "JPMorgan Chase & Co."        │
+         │   (CB is master: higher data quality) │
+         │                                       │
+         │ • legalName: "JPMorgan Chase & Co."   │
+         │   (CB master)                         │
+         │                                       │
+         │ • lei: "8I5DZWZKVSZI1NUHU748"        │
+         │   (same in both)                      │
+         │                                       │
+         │ • tier: "TIER_1" (from CB)           │
+         │ • riskRating: "LOW" (from CM)        │
+         │                                       │
+         │ Data Quality Scores:                  │
+         │   CB fields: 0.95 (high quality)     │
+         │   CM fields: 0.85 (good quality)     │
+         │                                       │
+         │ → Use CB as master for conflicts     │
+         └───────────────┬───────────────────────┘
+                         │
+                         ▼
+         ┌───────────────────────────────────────┐
+         │ STAGE 5: Create Federated Party       │
+         ├───────────────────────────────────────┤
+         │                                       │
+         │ Neo4j Cypher:                         │
+         │                                       │
+         │ // Create federated party node        │
+         │ CREATE (p:Party:Organization {        │
+         │   federatedId: "fed-jpm-001",        │
+         │   name: "JPMorgan Chase & Co.",      │
+         │   legalName: "JPMorgan Chase & Co.", │
+         │   lei: "8I5DZWZKVSZI1NUHU748",       │
+         │   tier: "TIER_1",                    │
+         │   riskRating: "LOW",                 │
+         │   confidence: 1.00,                   │
+         │   status: "ACTIVE"                   │
+         │ })                                    │
+         │                                       │
+         │ // Link to source records             │
+         │ CREATE (p)-[:SOURCED_FROM {           │
+         │   master_flag: true,                 │
+         │   field_mappings: {                  │
+         │     name: "name",                    │
+         │     legalName: "legalName",          │
+         │     tier: "tier"                     │
+         │   }                                   │
+         │ }]->(s1:SourceRecord {               │
+         │   sourceSystem: "COMMERCIAL_BANKING",│
+         │   sourceId: "CB-12345",              │
+         │   sourceData: {...},                 │
+         │   syncedAt: datetime()               │
+         │ })                                    │
+         │                                       │
+         │ CREATE (p)-[:SOURCED_FROM {           │
+         │   master_flag: false,                │
+         │   field_mappings: {                  │
+         │     name: "name",                    │
+         │     riskRating: "riskRating"         │
+         │   }                                   │
+         │ }]->(s2:SourceRecord {               │
+         │   sourceSystem: "CAPITAL_MARKETS",   │
+         │   sourceId: "CM-67890",              │
+         │   sourceData: {...},                 │
+         │   syncedAt: datetime()               │
+         │ })                                    │
+         │                                       │
+         │ // Create merge audit trail           │
+         │ CREATE (s1)-[:MERGED_WITH {           │
+         │   merge_date: datetime(),            │
+         │   confidence_score: 1.00,            │
+         │   merge_reason: "LEI exact match",   │
+         │   match_fields: ["lei"]              │
+         │ }]->(s2)                              │
+         └───────────────┬───────────────────────┘
+                         │
+                         ▼
+              ┌─────────────────────────┐
+              │ RESULT: Unified Party   │
+              │                         │
+              │ federatedId: fed-jpm-001│
+              │ Sources: 2              │
+              │ Confidence: 100%        │
+              │ Status: ACTIVE          │
+              └─────────────────────────┘
+
+ALTERNATIVE FLOWS:
+
+If Score = 0.85 (Manual Review):
+  1. Create DUPLICATES relationship
+  2. Assign to data steward in UI
+  3. Steward reviews side-by-side comparison
+  4. Steward approves/rejects merge
+  5. If approved → Execute Stage 4 & 5
+  6. If rejected → Mark as "not duplicate"
+
+If Score = 0.60 (Not a duplicate):
+  1. Create two separate federated parties
+  2. No DUPLICATES relationship
+  3. Both parties exist independently
+```
+
+---
 
 ## Conflict Resolution
 

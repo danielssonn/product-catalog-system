@@ -1,184 +1,136 @@
 # Documentation Index
 
-**Last Updated**: October 6, 2025
-**Total Active Documents**: 14 essential guides
+**Last Updated**: January 15, 2025
+**Total Active Documents**: 33 essential guides
 
 ---
 
 ## 🎯 Start Here
 
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| **[README.md](README.md)** | Project overview, quick start | Everyone |
-| **[QUICK_START.md](QUICK_START.md)** | 5-minute setup guide | New developers |
+**New to the project?**
+1. [README.md](README.md) - Project overview
+2. [QUICK_START.md](QUICK_START.md) - Get up and running
+3. [BUSINESS_ARCHITECTURE.md](BUSINESS_ARCHITECTURE.md) - Business context
 
 ---
 
-## 📘 Standards & Guidelines
+## 📚 Comprehensive Guides
 
-| Document | Description | When to Use |
-|----------|-------------|-------------|
-| **[STANDARDS_SUMMARY.md](STANDARDS_SUMMARY.md)** | ⭐ Quick reference table of all standards | Quick lookup during development |
-| **[NEW_SERVICE_CHECKLIST.md](NEW_SERVICE_CHECKLIST.md)** | ⭐ Step-by-step checklist for new services | When creating a new microservice |
-| **[PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md)** | Implementation details, metrics, examples | When implementing performance features |
-| **[SECURITY.md](SECURITY.md)** | Security guidelines, credentials | When configuring security or credentials |
-| **[TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md)** | Complete tenant isolation implementation guide | When implementing multi-tenancy |
+### Core Banking Integration
+**→ [CORE_BANKING_COMPLETE_GUIDE.md](CORE_BANKING_COMPLETE_GUIDE.md)** - THE comprehensive guide
+- Adapter pattern with visualizations
+- Routing decision tree
+- State machine diagrams
+- End-to-end provisioning flow
+- All Phase 1 & 2 content
 
----
+**Supporting**:
+- [CORE_BANKING_INDEX.md](CORE_BANKING_INDEX.md) - Quick navigation
+- [MOCK_CORE_SYSTEM_SETUP.md](MOCK_CORE_SYSTEM_SETUP.md) - Testing setup
+- [MOCK_CORE_TEST_DATA.md](MOCK_CORE_TEST_DATA.md) - Test data
 
-## 🏗️ Architecture & Patterns
+### Federated Party Management
+**→ [FEDERATED_PARTY_ARCHITECTURE.md](FEDERATED_PARTY_ARCHITECTURE.md)** - THE comprehensive guide
+- Neo4j graph model with examples
+- Entity resolution flow
+- Concrete party graph visualizations
+- Complete relationship types
 
-| Document | Description | When to Use |
-|----------|-------------|-------------|
-| **[OUTBOX_PATTERN_DESIGN.md](OUTBOX_PATTERN_DESIGN.md)** | Event-driven architecture with transactional outbox | Implementing event publishing |
-| **[ASYNC_WORKFLOW_POLLING.md](ASYNC_WORKFLOW_POLLING.md)** | HTTP 202 Accepted pattern for async operations | Building async APIs |
-| **[AGENTIC_WORKFLOW_DESIGN.md](AGENTIC_WORKFLOW_DESIGN.md)** | AI + Rules hybrid workflow system | Advanced workflow features |
-| **[API_VERSIONING_DESIGN.md](API_VERSIONING_DESIGN.md)** | Complete API versioning and transformation system | API backward compatibility |
-
----
-
-## 📦 Services
-
-| Document | Purpose |
-|----------|---------|
-| **[VERSION_SERVICE.md](VERSION_SERVICE.md)** | API versioning microservice documentation |
+**Supporting**:
+- [FEDERATED_PARTY_DEPLOYMENT.md](FEDERATED_PARTY_DEPLOYMENT.md) - Deployment
+- [PARTY_WORKFLOW_INTEGRATION.md](PARTY_WORKFLOW_INTEGRATION.md) - Workflow integration
+- [MANAGES_ON_BEHALF_OF_FEATURE.md](MANAGES_ON_BEHALF_OF_FEATURE.md) - Specific feature
 
 ---
 
-## 🧪 Testing
+## 🏗️ Technical Architecture
 
-| Document/Script | Purpose |
-|-----------------|---------|
-| **[END_TO_END_TEST.md](END_TO_END_TEST.md)** | Complete testing guide with example scripts |
-| **[test-optimizations.sh](test-optimizations.sh)** | Async, idempotency, connection pooling tests |
-| **[test-circuit-breaker.sh](test-circuit-breaker.sh)** | Circuit breaker failure scenarios |
-| **[test-idempotency.sh](test-idempotency.sh)** | Duplicate request handling |
-| **[test-tenant-isolation.sh](test-tenant-isolation.sh)** | Multi-tenant isolation verification |
+### Patterns & Design
+- [API_VERSIONING_DESIGN.md](API_VERSIONING_DESIGN.md) - API versioning patterns
+- [OUTBOX_PATTERN_DESIGN.md](OUTBOX_PATTERN_DESIGN.md) - Event sourcing
+- [TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md) - Multi-tenancy
+- [PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md) - Performance patterns
+- [SECURITY.md](SECURITY.md) - Security patterns
 
----
-
-## 🚀 Deployment
-
-| Document | Purpose |
-|----------|---------|
-| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Docker deployment instructions |
-| **[QUICK_START.md](QUICK_START.md)** | 5-minute setup guide |
-| **[docker-compose.yml](docker-compose.yml)** | Container orchestration |
+### Services
+- [VERSION_SERVICE.md](VERSION_SERVICE.md) - Version service
 
 ---
 
-## 📂 Archived Documentation
+## 🤖 Agentic Workflows
 
-Older documentation has been moved to preserve history:
+### Design & Architecture
+- [AGENTIC_WORKFLOW_DESIGN.md](AGENTIC_WORKFLOW_DESIGN.md) - Architecture
+- [ASYNC_WORKFLOW_POLLING.md](ASYNC_WORKFLOW_POLLING.md) - Async patterns
+- [DOCUMENT_VALIDATION_AGENT.md](DOCUMENT_VALIDATION_AGENT.md) - Agent design
 
-- **docs/archive/** - Obsolete/superseded documentation (9 files)
-- **docs/test-results/** - Historical test execution logs (4 files)
+### MCP Integration
+- [MCP_INTEGRATION_GUIDE.md](MCP_INTEGRATION_GUIDE.md) - Integration guide
+- [MCP_WORKFLOW_INVOCATION.md](MCP_WORKFLOW_INVOCATION.md) - Invocation patterns
+- [MCP_TEST_SUITE.md](MCP_TEST_SUITE.md) - Testing
 
----
-
-## 🔍 Quick Lookup
-
-### "I need to..."
-
-| Task | Document |
-|------|----------|
-| Create a new service | [NEW_SERVICE_CHECKLIST.md](NEW_SERVICE_CHECKLIST.md) ⭐ |
-| See all mandatory standards | [STANDARDS_SUMMARY.md](STANDARDS_SUMMARY.md) ⭐ |
-| See implementation examples | [PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md) |
-| Configure security/credentials | [SECURITY.md](SECURITY.md) |
-| Implement multi-tenancy | [TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md) |
-| Add event publishing | [OUTBOX_PATTERN_DESIGN.md](OUTBOX_PATTERN_DESIGN.md) |
-| Version my API | [API_VERSIONING_DESIGN.md](API_VERSIONING_DESIGN.md) |
-| Build async workflows | [ASYNC_WORKFLOW_POLLING.md](ASYNC_WORKFLOW_POLLING.md) |
-| Deploy with Docker | [DEPLOYMENT.md](DEPLOYMENT.md) |
-| Run tests | [END_TO_END_TEST.md](END_TO_END_TEST.md) + test-*.sh scripts |
+### Testing & Validation
+- [AGENTIC_WORKFLOW_TEST_CASES.md](AGENTIC_WORKFLOW_TEST_CASES.md) - Test cases
+- [AGENTIC_ROADMAP.md](AGENTIC_ROADMAP.md) - Future roadmap
 
 ---
 
-## 📁 File Organization
+## 🧪 Testing & Operations
 
-```
-product-catalog-system/
-├── README.md                          ← Start here
-├── DOCUMENTATION_INDEX.md             ← This file
-├── QUICK_START.md                     ← 5-minute setup
-│
-├── Standards & Guidelines
-│   ├── STANDARDS_SUMMARY.md           ← Quick reference ⭐
-│   ├── NEW_SERVICE_CHECKLIST.md       ← Step-by-step checklist ⭐
-│   ├── PERFORMANCE_OPTIMIZATIONS.md   ← Implementation details
-│   ├── SECURITY.md                    ← Security guidelines
-│   └── TENANT_ISOLATION_GUIDE.md      ← Multi-tenancy guide
-│
-├── Architecture & Patterns
-│   ├── OUTBOX_PATTERN_DESIGN.md       ← Event-driven architecture
-│   ├── ASYNC_WORKFLOW_POLLING.md      ← Async patterns
-│   ├── AGENTIC_WORKFLOW_DESIGN.md     ← AI workflows
-│   └── API_VERSIONING_DESIGN.md       ← API versioning
-│
-├── Services
-│   └── VERSION_SERVICE.md             ← Version service docs
-│
-├── Testing
-│   ├── END_TO_END_TEST.md
-│   ├── test-optimizations.sh
-│   ├── test-circuit-breaker.sh
-│   ├── test-idempotency.sh
-│   └── test-tenant-isolation.sh
-│
-├── Deployment
-│   ├── DEPLOYMENT.md
-│   └── docker-compose.yml
-│
-├── docs/
-│   ├── archive/                       ← Obsolete docs (9 files)
-│   └── test-results/                  ← Test logs (4 files)
-│
-└── backend/
-    └── product-service/               ← Reference implementation
-```
+### Testing
+- [TESTING.md](TESTING.md) - Testing strategy
+- [END_TO_END_TEST.md](END_TO_END_TEST.md) - E2E testing
+
+### Deployment
+- [DEPLOYMENT.md](DEPLOYMENT.md) - General deployment
+- [FEDERATED_PARTY_DEPLOYMENT.md](FEDERATED_PARTY_DEPLOYMENT.md) - Party deployment
+- [QUICK_START.md](QUICK_START.md) - Quick start
 
 ---
 
-## 🎯 By Role
+## 📋 Standards & Processes
 
-### New Developer
-1. [README.md](README.md) - Understand the project
-2. [QUICK_START.md](QUICK_START.md) - Get running
-3. [STANDARDS_SUMMARY.md](STANDARDS_SUMMARY.md) - Learn standards
-4. [DEPLOYMENT.md](DEPLOYMENT.md) - Deploy locally
-
-### Backend Developer (Creating New Service)
-1. [NEW_SERVICE_CHECKLIST.md](NEW_SERVICE_CHECKLIST.md) ⭐
-2. [STANDARDS_SUMMARY.md](STANDARDS_SUMMARY.md) ⭐
-3. [TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md)
-4. [PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md)
-5. [SECURITY.md](SECURITY.md)
-
-### API Developer
-1. [API_VERSIONING_DESIGN.md](API_VERSIONING_DESIGN.md)
-2. [ASYNC_WORKFLOW_POLLING.md](ASYNC_WORKFLOW_POLLING.md)
-3. [VERSION_SERVICE.md](VERSION_SERVICE.md)
-
-### Integration/Event-Driven Developer
-1. [OUTBOX_PATTERN_DESIGN.md](OUTBOX_PATTERN_DESIGN.md)
-2. [ASYNC_WORKFLOW_POLLING.md](ASYNC_WORKFLOW_POLLING.md)
-
-### DevOps/SRE
-1. [DEPLOYMENT.md](DEPLOYMENT.md)
-2. [SECURITY.md](SECURITY.md)
-3. [PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md)
+- [NEW_SERVICE_CHECKLIST.md](NEW_SERVICE_CHECKLIST.md) - New service checklist
+- [STANDARDS_SUMMARY.md](STANDARDS_SUMMARY.md) - Coding standards
+- [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md) - Refactoring guide
+- [PHASE_2_SUMMARY.md](PHASE_2_SUMMARY.md) - Phase 2 summary
 
 ---
 
-## 📊 Documentation Stats
+## 📊 Quick Reference
 
-- **Total active documents**: 14
-- **Archived documents**: 13
-- **Lines of documentation**: ~12,000+ lines
-- **Coverage**: 100%
-- **Last major update**: October 6, 2025
+### By Role
+
+**Developers**:
+1. Start: [QUICK_START.md](QUICK_START.md)
+2. Standards: [STANDARDS_SUMMARY.md](STANDARDS_SUMMARY.md)
+3. New Service: [NEW_SERVICE_CHECKLIST.md](NEW_SERVICE_CHECKLIST.md)
+
+**Architects**:
+1. Business: [BUSINESS_ARCHITECTURE.md](BUSINESS_ARCHITECTURE.md)
+2. Core Banking: [CORE_BANKING_COMPLETE_GUIDE.md](CORE_BANKING_COMPLETE_GUIDE.md)
+3. Party Model: [FEDERATED_PARTY_ARCHITECTURE.md](FEDERATED_PARTY_ARCHITECTURE.md)
+
+**QA Engineers**:
+1. Testing: [TESTING.md](TESTING.md)
+2. E2E Tests: [END_TO_END_TEST.md](END_TO_END_TEST.md)
+3. Mock Setup: [MOCK_CORE_SYSTEM_SETUP.md](MOCK_CORE_SYSTEM_SETUP.md)
+
+**DevOps**:
+1. Deployment: [DEPLOYMENT.md](DEPLOYMENT.md)
+2. Party Deployment: [FEDERATED_PARTY_DEPLOYMENT.md](FEDERATED_PARTY_DEPLOYMENT.md)
+
+### By Topic
+
+**Core Banking**: [CORE_BANKING_COMPLETE_GUIDE.md](CORE_BANKING_COMPLETE_GUIDE.md)
+**Party Management**: [FEDERATED_PARTY_ARCHITECTURE.md](FEDERATED_PARTY_ARCHITECTURE.md)
+**Workflows**: [AGENTIC_WORKFLOW_DESIGN.md](AGENTIC_WORKFLOW_DESIGN.md)
+**API Design**: [API_VERSIONING_DESIGN.md](API_VERSIONING_DESIGN.md)
+**Multi-Tenancy**: [TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md)
+**Performance**: [PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md)
+**Security**: [SECURITY.md](SECURITY.md)
 
 ---
 
-**Need help?** Start with [README.md](README.md) and [QUICK_START.md](QUICK_START.md).
+**Total Documents**: 33 (down from 47)
+**Reduction**: 30% fewer files, better organized

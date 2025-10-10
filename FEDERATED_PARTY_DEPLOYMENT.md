@@ -283,10 +283,9 @@ The system has fuzzy matching capability that could merge on:
 
 ## Support and Documentation
 
-- **Full Architecture**: See `FEDERATED_PARTY_ARCHITECTURE.md`
-- **Implementation Guide**: See `FEDERATED_PARTY_IMPLEMENTATION.md`
-- **System Summary**: See `PARTY_SYSTEM_SUMMARY.md`
-- **README**: See `PARTY_SYSTEM_README.md`
+- **Full Architecture**: See [FEDERATED_PARTY_ARCHITECTURE.md](FEDERATED_PARTY_ARCHITECTURE.md)
+- **Workflow Integration**: See [PARTY_WORKFLOW_INTEGRATION.md](PARTY_WORKFLOW_INTEGRATION.md)
+- **Feature Guide**: See [MANAGES_ON_BEHALF_OF_FEATURE.md](MANAGES_ON_BEHALF_OF_FEATURE.md)
 
 ---
 

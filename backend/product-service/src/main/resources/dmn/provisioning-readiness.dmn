@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             id="provisioning-readiness-rules"
+             name="Provisioning Readiness Rules"
+             namespace="http://bank.com/dmn/provisioning">
+
+  <decision id="provisioningReadiness" name="Provisioning Readiness Decision">
+    <decisionTable id="DecisionTable_1">
+      <input id="Input_1" label="Product Category">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>productCategory</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Has Pricing">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>hasPricing</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Has Channels">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>hasChannels</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Has Terms">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>hasTerms</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_5" label="Approval Required">
+        <inputExpression id="InputExpression_5" typeRef="boolean">
+          <text>approvalRequired</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_6" label="Workflow Approved">
+        <inputExpression id="InputExpression_6" typeRef="boolean">
+          <text>workflowApproved</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_7" label="Has Interest Rate">
+        <inputExpression id="InputExpression_7" typeRef="boolean">
+          <text>hasInterestRate</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_8" label="Has Monthly Fee">
+        <inputExpression id="InputExpression_8" typeRef="boolean">
+          <text>hasMonthlyFee</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_9" label="Has Minimum Balance">
+        <inputExpression id="InputExpression_9" typeRef="boolean">
+          <text>hasMinimumBalance</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_1" label="Ready for Provisioning" name="ready" typeRef="boolean" />
+      <output id="Output_2" label="Reason" name="reason" typeRef="string" />
+
+      <!-- Rule 1: Checking account must have monthly fee and minimum balance -->
+      <rule id="Rule_1">
+        <inputEntry id="InputEntry_1_1">
+          <text>"CHECKING"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_5">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_6">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_7">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_8">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_9">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"Checking account configuration complete"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Savings account must have interest rate and minimum balance -->
+      <rule id="Rule_2">
+        <inputEntry id="InputEntry_2_1">
+          <text>"SAVINGS"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_5">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_6">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_7">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_8">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_9">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"Savings account configuration complete"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Product with approval required must have workflow approved -->
+      <rule id="Rule_3">
+        <inputEntry id="InputEntry_3_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_6">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_7">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_8">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_9">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"Workflow approval pending"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Missing pricing -->
+      <rule id="Rule_4">
+        <inputEntry id="InputEntry_4_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_5">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_6">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_7">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_8">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_9">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"Pricing configuration missing"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: Missing channels -->
+      <rule id="Rule_5">
+        <inputEntry id="InputEntry_5_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_5">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_6">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_7">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_8">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_9">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"Channels not configured"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: Missing terms -->
+      <rule id="Rule_6">
+        <inputEntry id="InputEntry_6_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_5">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_6">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_7">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_8">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_9">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"Terms and conditions missing"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>
