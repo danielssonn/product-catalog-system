@@ -45,8 +45,20 @@ logging:
   level:
     root: INFO
     com.bank.productcatalog: DEBUG
+    com.bank.product.core: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Core Banking Integration Configuration
+core-banking:
+  provisioning:
+    enabled: true
+    auto-provisioning-enabled: true
+    kafka-topic: core-provisioning-events
+    retry:
+      max-attempts: 3
+      backoff-ms: 5000
+      backoff-multiplier: 2.0
 
 api:
   version: "1.0"

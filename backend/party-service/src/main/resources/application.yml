@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: party-service
+
+  neo4j:
+    uri: bolt://localhost:7687
+    authentication:
+      username: neo4j
+      password: password
+
+  graphql:
+    graphiql:
+      enabled: true
+      path: /graphiql
+    path: /graphql
+
+server:
+  port: 8083
+
+# Source system API endpoints
+commercial:
+  banking:
+    api:
+      url: http://localhost:8080/commercial-banking
+
+capital:
+  markets:
+    api:
+      url: http://localhost:8081/capital-markets
+
+logging:
+  level:
+    com.bank.product.party: DEBUG
+    org.neo4j: INFO
+    org.springframework.data.neo4j: DEBUG

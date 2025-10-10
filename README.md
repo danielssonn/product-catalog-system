@@ -170,12 +170,29 @@ ng test
 - `KAFKA_BOOTSTRAP_SERVERS`: Kafka broker addresses
 - `JWT_SECRET`: JWT signing secret
 
-## Documentation
+## 📚 Documentation
 
-- [API Documentation](docs/api/README.md)
-- [Data Models](docs/models/README.md)
-- [Architecture Guide](docs/architecture/README.md)
-- [Deployment Guide](docs/deployment/README.md)
+### Essential Reading
+
+**Core Banking Integration**
+- 📘 [Core Banking Complete Guide](CORE_BANKING_COMPLETE_GUIDE.md) - Comprehensive guide with visualizations
+  - Adapter pattern for vendor abstraction
+  - Auto-provisioning with MongoDB change streams
+  - Multi-core routing strategies
+  - Resilience patterns (circuit breaker, retry)
+  - [Quick Navigation Index](CORE_BANKING_INDEX.md)
+
+**Federated Party Management**
+- 📗 [Federated Party Architecture](FEDERATED_PARTY_ARCHITECTURE.md) - Graph-based party model
+  - Neo4j graph model with concrete examples
+  - Entity resolution and deduplication
+  - Relationship modeling (MANAGES_ON_BEHALF_OF, etc.)
+  - Data provenance and conflict resolution
+  - [Deployment Guide](FEDERATED_PARTY_DEPLOYMENT.md)
+  - [Workflow Integration](PARTY_WORKFLOW_INTEGRATION.md)
+
+**Complete Documentation**
+- 📋 [Documentation Index](DOCUMENTATION_INDEX.md) - All documentation organized by topic and role
 
 ## Contributing
 

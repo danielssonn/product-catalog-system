@@ -1,5 +1,6 @@
 package com.bank.product.domain.solution.model;
 
+import com.bank.product.core.model.CoreProvisioningRecord;
 import com.bank.product.enums.WorkflowSubmissionStatus;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
@@ -9,6 +10,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -100,4 +102,11 @@ public class Solution {
     private Integer slaHours;
 
     private Instant estimatedCompletion;
+
+    // Core banking system provisioning
+    /**
+     * Provisioning records for each core system this solution is provisioned to.
+     * Supports multi-core and geo-distributed deployments.
+     */
+    private List<CoreProvisioningRecord> coreProvisioningRecords = new ArrayList<>();
 }

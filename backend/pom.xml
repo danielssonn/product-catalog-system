@@ -26,6 +26,9 @@
         <module>workflow-service</module>
         <module>notification-service</module>
         <module>version-service</module>
+        <module>commercial-banking-party-service</module>
+        <module>capital-markets-party-service</module>
+        <module>party-service</module>
     </modules>
 
     <!-- Disabled modules - add progressively as they are implemented:

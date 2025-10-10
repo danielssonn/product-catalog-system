@@ -1,0 +1,17 @@
+# Environment variables (contains sensitive credentials)
+.env
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+mock-apis.log
+
+# Process IDs
+*.pid
+
+# OS files
+.DS_Store
+Thumbs.db

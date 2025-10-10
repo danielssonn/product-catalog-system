@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: commercial-banking-party-service
+
+  data:
+    mongodb:
+      host: ${MONGODB_HOST:localhost}
+      port: ${MONGODB_PORT:27018}
+      database: commercial_banking
+      username: ${MONGODB_USER:commercialuser}
+      password: ${MONGODB_PASSWORD:commercialpass}
+      authentication-database: admin
+
+server:
+  port: 8084
+
+logging:
+  level:
+    com.bank.commercialbanking: DEBUG
+    org.springframework.data.mongodb: INFO
