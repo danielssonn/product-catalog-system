@@ -1,0 +1,99 @@
+
+[0;34m========================================[0m
+[0;34mTEST 1: SERVICE HEALTH CHECK[0m
+[0;34m========================================[0m
+
+Checking all services...
+
+[0;32m✓ API Gateway is healthy[0m
+[0;32m✓ Product Service is healthy[0m
+[0;31m✗ Party Service is NOT healthy[0m
+[0;31m✗ Neo4j is NOT healthy[0m
+[0;34mℹ INFO: Neo4j browser check (auth required)[0m
+
+[0;31m✗ Some services are unhealthy - results may be inaccurate[0m
+
+[0;34m========================================[0m
+[0;34mTEST 2: COLD START PERFORMANCE (Cache Miss)[0m
+[0;34m========================================[0m
+
+[0;34mℹ INFO: Clearing Party Service cache...[0m
+
+[0;36m────────────────────────────────────────[0m
+[0;36mSingle Request - Cold Start (Cache Miss)[0m
+[0;36m────────────────────────────────────────[0m
+
+[0;35mIteration 1/3[0m
+    DNS Lookup:                            [1;33m    0.01[0m ms
+    TCP Connection:                        [1;33m    0.32[0m ms
+    TLS Handshake:                         [1;33m    0.04[0m ms
+    Request Processing:                    [1;33m  314.65[0m ms
+    Response Transfer:                     [1;33m    0.17[0m ms
+    TOTAL (End-to-End):                    [1;33m  315.19[0m ms
+    HTTP Status:                           [0;32m     400[0m 
+    Response Size:                         [0;32m      51[0m bytes
+
+[0;35mIteration 2/3[0m
+    DNS Lookup:                            [1;33m    0.01[0m ms
+    TCP Connection:                        [1;33m    0.20[0m ms
+    TLS Handshake:                         [1;33m    0.03[0m ms
+    Request Processing:                    [1;33m  109.46[0m ms
+    Response Transfer:                     [1;33m    0.08[0m ms
+    TOTAL (End-to-End):                    [1;33m  109.78[0m ms
+    HTTP Status:                           [0;32m     400[0m 
+    Response Size:                         [0;32m      51[0m bytes
+
+[0;35mIteration 3/3[0m
+    DNS Lookup:                            [1;33m    0.02[0m ms
+    TCP Connection:                        [1;33m    0.26[0m ms
+    TLS Handshake:                         [1;33m    0.04[0m ms
+    Request Processing:                    [1;33m  118.50[0m ms
+    Response Transfer:                     [1;33m    0.17[0m ms
+    TOTAL (End-to-End):                    [1;33m  118.99[0m ms
+    HTTP Status:                           [0;32m     400[0m 
+    Response Size:                         [0;32m      51[0m bytes
+
+
+[0;36m────────────────────────────────────────[0m
+[0;36mCold Start Summary[0m
+[0;36m────────────────────────────────────────[0m
+  Average Cold Start Time:                 [1;33m  181.32[0m ms
+  Iterations:                              [0;32m       3[0m 
+
+[0;34m========================================[0m
+[0;34mTEST 3: WARM CACHE PERFORMANCE (Cache Hit)[0m
+[0;34m========================================[0m
+
+[0;34mℹ INFO: Warming up cache with 5 requests...[0m
+
+[0;36m────────────────────────────────────────[0m
+[0;36mSingle Request - Warm Cache (Cache Hit)[0m
+[0;36m────────────────────────────────────────[0m
+..........
+
+[0;36m────────────────────────────────────────[0m
+[0;36mWarm Cache Summary[0m
+[0;36m────────────────────────────────────────[0m
+  Average Response Time:                   [1;33m   85.95[0m ms
+  Min Response Time:                       [1;33m   75.89[0m ms
+  Max Response Time:                       [1;33m  151.31[0m ms
+  Iterations:                              [0;32m      10[0m 
+
+[0;34m========================================[0m
+[0;34mTEST 4: CONTEXT RESOLUTION BREAKDOWN[0m
+[0;34m========================================[0m
+
+
+[0;36m────────────────────────────────────────[0m
+[0;36mDirect Party Service Call (Context Resolution Only)[0m
+[0;36m────────────────────────────────────────[0m
+  Party Service Direct Call (Cold):        [1;33m   96.82[0m ms
+  Party Service Direct Call (Cached):      [1;33m    7.44[0m ms
+
+[0;36m────────────────────────────────────────[0m
+[0;36mComponent Timing Estimates[0m
+[0;36m────────────────────────────────────────[0m
+[0;34mℹ INFO: Estimated component breakdown (based on profiling):[0m
+
+./test-performance-profile.sh: line 80: printf: 5-10: invalid number
+    JWT Validation:                        [1;33m    0.00[0m ms

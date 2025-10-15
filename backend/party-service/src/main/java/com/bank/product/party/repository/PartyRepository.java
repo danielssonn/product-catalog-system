@@ -64,6 +64,28 @@ public interface PartyRepository extends Neo4jRepository<Party, String> {
     List<Party> findCrossDomainParties(@Param("minSystems") Integer minSystems);
 
     /**
+     * Find organization that employs an individual (for tenant resolution)
+     */
+    @Query("""
+            MATCH (ind:Individual {federatedId: $individualId})-[:EMPLOYED_BY]->(org:Organization)
+            WHERE org.status = 'ACTIVE'
+            RETURN org
+            LIMIT 1
+            """)
+    Optional<Party> findEmployerOrganization(@Param("individualId") String individualId);
+
+    /**
+     * Find parent organization for a legal entity (for tenant resolution)
+     */
+    @Query("""
+            MATCH (le:LegalEntity {federatedId: $legalEntityId})<-[:HAS_LEGAL_ENTITY]-(org:Organization)
+            WHERE org.status = 'ACTIVE'
+            RETURN org
+            LIMIT 1
+            """)
+    Optional<Party> findParentOrganization(@Param("legalEntityId") String legalEntityId);
+
+    /**
      * Delete party by federated ID
      */
     void deleteByFederatedId(String federatedId);
