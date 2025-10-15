@@ -139,6 +139,7 @@ services:
     url: ${WORKFLOW_SERVICE_URL:http://workflow-service:8089}
   party-service:
     url: ${PARTY_SERVICE_URL:http://party-service:8083}
+    timeout: ${PARTY_SERVICE_TIMEOUT:5000}
   file-processing-service:
     url: ${FILE_PROCESSING_SERVICE_URL:http://file-processing-service:8094}
   payment-service:
@@ -189,9 +190,39 @@ resilience4j:
         retryExceptions:
           - org.springframework.web.client.HttpServerErrorException
           - java.io.IOException
+          - java.util.concurrent.TimeoutException
         ignoreExceptions:
           - org.springframework.web.client.HttpClientErrorException.BadRequest
           - org.springframework.web.client.HttpClientErrorException.Unauthorized
+          - org.springframework.web.client.HttpClientErrorException.Forbidden
+
+    instances:
+      party-service-retry:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+        # Retry on transient failures only
+        retryExceptions:
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.reactive.function.client.WebClientResponseException.InternalServerError
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadGateway
+          - org.springframework.web.reactive.function.client.WebClientResponseException.ServiceUnavailable
+          - org.springframework.web.reactive.function.client.WebClientResponseException.GatewayTimeout
+
+  # Bulkhead configuration
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 0ms
+
+    instances:
+      party-service-bulkhead:
+        maxConcurrentCalls: 10
+        maxWaitDuration: 100ms
 
   # Rate Limiter configuration (per channel)
   ratelimiter:
