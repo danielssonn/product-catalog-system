@@ -344,6 +344,39 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Authentication Service
+  auth-service:
+    build:
+      context: ./backend
+      dockerfile: auth-service/Dockerfile
+    container_name: product-catalog-auth-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8097:8097"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MONGODB_URI: mongodb://${MONGODB_USERNAME:-admin}:${MONGODB_PASSWORD:-admin123}@mongodb:27017/product_catalog_db?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 8097
+    networks:
+      - product-catalog-network
+    healthcheck:
+      test: curl -f http://localhost:8097/actuator/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # API Gateway (Multi-Channel)
   api-gateway:
     build:
@@ -351,6 +384,8 @@ services:
       dockerfile: api-gateway/Dockerfile
     container_name: product-catalog-api-gateway
     depends_on:
+      auth-service:
+        condition: service_healthy
       mongodb:
         condition: service_healthy
       redis:

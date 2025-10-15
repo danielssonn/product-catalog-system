@@ -20,6 +20,61 @@ spring:
       name: ${GATEWAY_ADMIN_USER:admin}
       password: ${GATEWAY_ADMIN_PASSWORD:admin123}
       roles: ADMIN
+
+# JWT Security Configuration
+security:
+  jwt:
+    issuer: product-catalog-system
+    algorithm: RS256
+    access-token-expiration: PT15M    # 15 minutes
+    refresh-token-expiration: P7D     # 7 days
+    service-token-expiration: PT5M    # 5 minutes
+    enable-blacklist: true
+    blacklist-prefix: "jwt:blacklist:"
+
+    # RSA Private Key for signing tokens
+    # IMPORTANT: In production, store this in HashiCorp Vault
+    private-key: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDMt5zDR4M30Nwn
+      Urf8V8qpm95W81Y/tvyI0YbSieMQRIu5MrFFUVuQz3TbbnoaXXlvUgGnIjn3jLN8
+      vaGgkM1giKRu3m2qVqLqLN6xh78A+gE4FmYBW9o9ovX2JRg4i94j3gsYrin48Hll
+      oBuaaf0Q7jDHRkn8q7uv6Ka+sCsv8DXj3Bieu8YeA4mCM9cBMk/NgwsUPKKHMd/j
+      yykfSiKrFeIU0fXm48TwsioZ6elTXkRsmn/crfESH5w3lmgEqXx/mxRyDqdGtHJs
+      8EKgcL6SWZm5X42XaUXfGCu5HIZIlighZ/3crt9d4Mk68X+w3MouC2wbCEETPSBS
+      J54Ti64xAgMBAAECggEADa2hges97V1tTkvQuwG3KvK9DgB7hW2RrUcZq+jWZPR9
+      hPnp/gyP8oqn/07gBfGzrtBTB7Kp3pxWNEob2eV+8Xmjyfwe5fQctcqadRBxvswV
+      h4S4m1Pirr5cEo6bMhEHXkxkX6loaMeRhuymF4DILcjKddAgmqszUs83z/MnqY/T
+      vdGcBus3cwEu9DGAFLuEm2/+wAEC1me3VprUUPqOjAo1Xaqk87zYzytTCBVfmjjk
+      LPHxRfqa0eMDVvkNPciK8g++A5rLC2i3xPiw1a3gbRl6WwMHhiyYCYzdqKA+DR+z
+      dEtrbkk7EU5jTd/TW2TrGiCbEIYidxZjpeHqKii8uQKBgQDufOMoTJaiqiZrun6K
+      qu5ORpvPOCvhp5JwozU4V0OCxCc2yfoF8fC9B+iYQ52aWxowiiExfE1Lgwxbs/gG
+      HD6poaoq1Rt6HV9k+XKFKj7d9BSwOR26GyFKZHNNyDrfq+A1aT51LSTwpDk+7fj8
+      s/i5SM1S9rI1pXpa8ht+jwVBeQKBgQDbv+cQx9DbnlQ4s7Wai9N9WIlYwTkjar7s
+      oNd7TCxU2F4VDRAKLyVZiWIlI4Z5oJCy4gznZjz7UumVkDOnaFLtqnnMT3Y526Cm
+      FA+OkVh6enOvS3yhRrVAQlQPP0ryMKhDaZpyyWnjlgCSejaQOzt7dm/JlN1iz1YA
+      mo6uhvqceQKBgG+GGVgEEME6nkLscDZ6XnxeSohptSOOEE36FG4naJujDM9zPic/
+      j5tmMl/Z5r6C8clXHtScUy0HuGS90TNSS/9ZaVEkXPgK+kwm1mXtbn6uoGoUG5Gn
+      FDdMqBrskpN8NZnkgF+dX9PkiBykfjX2F07V+6ZbVNT/cCtNYowZZ5TJAoGAMb1E
+      HeY8fhleUt9KccrIegy6Od6ygjO9N25Il93sAuBem0Ezqjp1p8iS8HkUDR+s4PCN
+      nyrjDrf7qyDSsEfKzYTSwM4TopD10eGki86WSlLBMKJTeWW5zOu2fyUCX8NnsqqK
+      jQTN9PeU9ZK4GvltQ0rRjr0lRyJLAyP4u8RNoXECgYBUgxSqmdW/Hb0Ipr8nAlmI
+      zCrvsmtJWx3BfopazziuQvm4fH9T6HEya54n5dD2AbO5mfGJEu60qIftTYxslvN5
+      KJbzYhZUP5QWP9QT5pUfNeEjg47hNJX7XURt3tDWq+K9RaQoNZV6xIMbhlkymUF9
+      4BHlnUQB/icM5AhSvTwPWw==
+      -----END PRIVATE KEY-----
+
+    # RSA Public Key for validating tokens
+    public-key: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzLecw0eDN9DcJ1K3/FfK
+      qZveVvNWP7b8iNGG0onjEESLuTKxRVFbkM902256Gl15b1IBpyI594yzfL2hoJDN
+      YIikbt5tqlai6izesYe/APoBOBZmAVvaPaL19iUYOIveI94LGK4p+PB5ZaAbmmn9
+      EO4wx0ZJ/Ku7r+imvrArL/A149wYnrvGHgOJgjPXATJPzYMLFDyihzHf48spH0oi
+      qxXiFNH15uPE8LIqGenpU15EbJp/3K3xEh+cN5ZoBKl8f5sUcg6nRrRybPBCoHC+
+      klmZuV+Nl2lF3xgruRyGSJYoIWf93K7fXeDJOvF/sNzKLgtsGwhBEz0gUieeE4uu
+      MQIDAQAB
+      -----END PUBLIC KEY-----
   
   # Kafka configuration
   kafka:
@@ -33,6 +88,10 @@ spring:
   # Cloud Gateway configuration
   cloud:
     gateway:
+      # Enable REST controllers in Gateway
+      mvc:
+        routes:
+          enabled: false
       # Global CORS configuration
       globalcors:
         cors-configurations:
@@ -72,6 +131,8 @@ spring:
 
 # Service URLs (for routing)
 services:
+  auth-service:
+    url: ${AUTH_SERVICE_URL:http://auth-service:8097}
   product-service:
     url: ${PRODUCT_SERVICE_URL:http://product-service:8081}
   workflow-service:
@@ -185,9 +246,10 @@ server:
 logging:
   level:
     root: ${LOG_LEVEL_ROOT:INFO}
-    com.bank.product.gateway: ${LOG_LEVEL_APP:INFO}
-    org.springframework.cloud.gateway: ${LOG_LEVEL_GATEWAY:INFO}
-    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    com.bank.product.gateway: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.cloud.gateway: ${LOG_LEVEL_GATEWAY:DEBUG}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:DEBUG}
+    org.springframework.web.reactive.function.server: DEBUG
     org.springframework.data.mongodb: WARN
     org.springframework.kafka: WARN
     io.netty: WARN
