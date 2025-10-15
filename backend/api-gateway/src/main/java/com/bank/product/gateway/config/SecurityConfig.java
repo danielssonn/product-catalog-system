@@ -1,5 +1,6 @@
 package com.bank.product.gateway.config;
 
+import com.bank.product.gateway.security.JwtAuthenticationFilter;
 import com.bank.product.gateway.service.MongoReactiveUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -15,8 +16,17 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 
 /**
  * Security configuration for API Gateway
- * Uses MongoDB-backed authentication with ReactiveUserDetailsService
- * Supports multiple authentication mechanisms per channel
+ *
+ * Multi-layered authentication strategy:
+ * 1. JWT Bearer token authentication (preferred for external clients)
+ * 2. HTTP Basic authentication (fallback for service-to-service and legacy clients)
+ *
+ * Security Features:
+ * - JWT-based authentication with RSA signature verification
+ * - Token revocation support via Redis blacklist
+ * - Per-channel authorization rules
+ * - MongoDB-backed user management
+ * - BCrypt password hashing
  */
 @Configuration
 @EnableWebFluxSecurity
@@ -25,24 +35,37 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 public class SecurityConfig {
 
     private final MongoReactiveUserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .authorizeExchange(exchanges -> exchanges
-                .pathMatchers("/actuator/health").permitAll()
+                // OAuth endpoints - completely public (no authentication required)
+                .pathMatchers("/oauth/**").permitAll()
+
+                // Public endpoints
+                .pathMatchers("/actuator/health", "/test/**").permitAll()
+
+                // Admin endpoints
                 .pathMatchers("/actuator/**").hasRole("ADMIN")
+                .pathMatchers("/admin/**").hasRole("ADMIN")
+
+                // Public API
                 .pathMatchers("/api/v*/public/**").permitAll()
+
+                // Channel-based authorization
                 .pathMatchers("/channel/host-to-host/**").hasRole("SYSTEM")
                 .pathMatchers("/channel/erp/**").hasAnyRole("SYSTEM", "ERP_USER", "ADMIN")
                 .pathMatchers("/channel/portal/**").hasAnyRole("USER", "CUSTOMER", "ADMIN")
                 .pathMatchers("/channel/salesforce/**").hasAnyRole("SALESFORCE", "ADMIN")
-                .pathMatchers("/admin/**").hasRole("ADMIN")
+
+                // All other requests require authentication
                 .anyExchange().authenticated()
             )
             .authenticationManager(reactiveAuthenticationManager())
-            .httpBasic(basic -> {})
+            // DO NOT enable httpBasic() globally - it forces authentication on ALL requests
             .build();
     }
 

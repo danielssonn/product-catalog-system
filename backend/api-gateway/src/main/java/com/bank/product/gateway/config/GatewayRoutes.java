@@ -42,10 +42,19 @@ public class GatewayRoutes {
     @Value("${services.application-service.url:http://application-service:8096}")
     private String applicationServiceUrl;
 
+    @Value("${services.auth-service.url:http://auth-service:8097}")
+    private String authServiceUrl;
+
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
-            
+
+            // ======== AUTHENTICATION SERVICE (OAuth) ========
+            // OAuth endpoints are public (no filters) - handled by auth-service
+            .route("auth_service_oauth", r -> r
+                .path("/oauth/**")
+                .uri(authServiceUrl))
+
             // ======== PUBLIC API CHANNEL ========
             .route("public_api_product_service", r -> r
                 .path("/api/v*/products/**", "/api/v*/solutions/**", "/api/v*/catalog/**")
