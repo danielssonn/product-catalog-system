@@ -39,7 +39,11 @@ public class Product {
 
     private String category;
 
-    private ProductType type;
+    /**
+     * Product type code - references ProductTypeDefinition.typeCode
+     * Changed from enum to String for data-driven product type management
+     */
+    private String type;
 
     private ProductStatus status;
 

@@ -2,9 +2,9 @@ package com.bank.product.domain.catalog.service.impl;
 
 import com.bank.product.domain.catalog.repository.CatalogRepository;
 import com.bank.product.domain.catalog.service.CatalogService;
+import com.bank.product.domain.catalog.service.ProductTypeValidator;
 import com.bank.product.domain.catalog.model.CatalogStatus;
 import com.bank.product.domain.catalog.model.ProductCatalog;
-import com.bank.product.domain.catalog.model.ProductType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -22,6 +22,7 @@ import java.util.UUID;
 public class CatalogServiceImpl implements CatalogService {
 
     private final CatalogRepository catalogRepository;
+    private final ProductTypeValidator productTypeValidator;
 
     @Override
     @Transactional
@@ -30,6 +31,11 @@ public class CatalogServiceImpl implements CatalogService {
 
         if (catalogRepository.existsByCatalogProductId(catalog.getCatalogProductId())) {
             throw new RuntimeException("Catalog product with ID " + catalog.getCatalogProductId() + " already exists");
+        }
+
+        // Validate product type exists and is active
+        if (catalog.getType() != null) {
+            productTypeValidator.validateProductTypeOrThrow(catalog.getType());
         }
 
         catalog.setId(UUID.randomUUID().toString());
@@ -104,9 +110,9 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     @Override
-    public Page<ProductCatalog> getCatalogProductsByType(ProductType type, Pageable pageable) {
-        log.debug("Fetching catalog products of type {}", type);
-        return catalogRepository.findByType(type, pageable);
+    public Page<ProductCatalog> getCatalogProductsByType(String typeCode, Pageable pageable) {
+        log.debug("Fetching catalog products of type {}", typeCode);
+        return catalogRepository.findByType(typeCode, pageable);
     }
 
     @Override

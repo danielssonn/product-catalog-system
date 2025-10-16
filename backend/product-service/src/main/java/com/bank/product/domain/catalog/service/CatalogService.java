@@ -2,7 +2,6 @@ package com.bank.product.domain.catalog.service;
 
 import com.bank.product.domain.catalog.model.CatalogStatus;
 import com.bank.product.domain.catalog.model.ProductCatalog;
-import com.bank.product.domain.catalog.model.ProductType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -22,7 +21,11 @@ public interface CatalogService {
 
     Page<ProductCatalog> getCatalogProductsByCategory(String category, Pageable pageable);
 
-    Page<ProductCatalog> getCatalogProductsByType(ProductType type, Pageable pageable);
+    /**
+     * Get catalog products by type code
+     * @param typeCode Product type code (e.g., "CHECKING_ACCOUNT", "ACH_TRANSFER")
+     */
+    Page<ProductCatalog> getCatalogProductsByType(String typeCode, Pageable pageable);
 
     List<ProductCatalog> getAvailableCatalogProducts();
 
