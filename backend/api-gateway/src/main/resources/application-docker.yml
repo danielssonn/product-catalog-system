@@ -41,6 +41,7 @@ services:
     url: http://workflow-service:8089
   party-service:
     url: http://party-service:8083
+    timeout: 5000
   file-processing-service:
     url: http://file-processing-service:8094
   payment-service:

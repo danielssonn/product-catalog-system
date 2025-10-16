@@ -9,10 +9,11 @@ COPY package*.json ./
 RUN npm ci --only=production
 
 # Copy application files
-COPY *.js ./
+COPY mock-core-server.js ./
+COPY .env* ./
 
-# Expose ports for the three mock core systems
+# Expose ports for all three mock APIs
 EXPOSE 3000 3001 3002
 
-# Start the application
+# Start the server
 CMD ["node", "mock-core-server.js"]
