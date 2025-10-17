@@ -2,7 +2,6 @@ package com.bank.product.domain.catalog.repository;
 
 import com.bank.product.domain.catalog.model.CatalogStatus;
 import com.bank.product.domain.catalog.model.ProductCatalog;
-import com.bank.product.domain.catalog.model.ProductType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -22,7 +21,19 @@ public interface CatalogRepository extends MongoRepository<ProductCatalog, Strin
 
     Page<ProductCatalog> findByCategory(String category, Pageable pageable);
 
-    Page<ProductCatalog> findByType(ProductType type, Pageable pageable);
+    /**
+     * Find catalog products by type code
+     * @param type Product type code (e.g., "CHECKING_ACCOUNT", "ACH_TRANSFER")
+     */
+    Page<ProductCatalog> findByType(String type, Pageable pageable);
+
+    /**
+     * Count catalog products by type code
+     * Used to check if a product type can be safely deleted
+     * @param type Product type code
+     * @return Number of catalog products using this type
+     */
+    long countByType(String type);
 
     Page<ProductCatalog> findByProductTier(String productTier, Pageable pageable);
 
