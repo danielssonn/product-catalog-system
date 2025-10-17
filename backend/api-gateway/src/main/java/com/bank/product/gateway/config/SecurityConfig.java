@@ -9,6 +9,7 @@ import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,6 +42,12 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
+            // Add JWT authentication filter BEFORE the authentication filter
+            // This allows JWT tokens to be validated and set in SecurityContext
+            .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+            // Enable HTTP Basic Auth as fallback
+            // This provides a second authentication mechanism if JWT is not present
+            .httpBasic(httpBasic -> httpBasic.authenticationManager(reactiveAuthenticationManager()))
             .authorizeExchange(exchanges -> exchanges
                 // OAuth endpoints - completely public (no authentication required)
                 .pathMatchers("/oauth/**").permitAll()
@@ -64,8 +71,6 @@ public class SecurityConfig {
                 // All other requests require authentication
                 .anyExchange().authenticated()
             )
-            .authenticationManager(reactiveAuthenticationManager())
-            // DO NOT enable httpBasic() globally - it forces authentication on ALL requests
             .build();
     }
 

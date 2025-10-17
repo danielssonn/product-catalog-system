@@ -1,6 +1,9 @@
 package com.bank.product.domain.catalog.model;
 
 /**
+ * Product types supported by the catalog system.
+ * Includes both account types and payment processing services.
+ *
  * @deprecated This enum has been replaced with data-driven product type management.
  * Product types are now stored in the 'product_types' MongoDB collection.
  * Use ProductTypeDefinition and ProductTypeValidator instead.
