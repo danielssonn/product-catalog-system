@@ -27,6 +27,14 @@ public interface CatalogRepository extends MongoRepository<ProductCatalog, Strin
      */
     Page<ProductCatalog> findByType(String type, Pageable pageable);
 
+    /**
+     * Count catalog products by type code
+     * Used to check if a product type can be safely deleted
+     * @param type Product type code
+     * @return Number of catalog products using this type
+     */
+    long countByType(String type);
+
     Page<ProductCatalog> findByProductTier(String productTier, Pageable pageable);
 
     boolean existsByCatalogProductId(String catalogProductId);

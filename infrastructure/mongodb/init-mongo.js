@@ -476,4 +476,361 @@ db.workflow_templates.insertOne({
 });
 
 print('Workflow template inserted');
+
+// ============================================
+// PRODUCT TYPE DEFINITIONS (Data-Driven)
+// ============================================
+
+// Create product_types collection
+db.createCollection('product_types');
+db.product_types.createIndex({ "typeCode": 1 }, { unique: true });
+db.product_types.createIndex({ "category": 1 });
+db.product_types.createIndex({ "active": 1 });
+db.product_types.createIndex({ "displayOrder": 1 });
+print('Product types collection and indexes created');
+
+// Insert initial product type definitions
+db.product_types.insertMany([
+    // Account Products
+    {
+        typeCode: "CHECKING_ACCOUNT",
+        name: "Checking Account",
+        description: "Standard checking account for daily transactions",
+        category: "ACCOUNT",
+        subcategory: "DEPOSIT",
+        active: true,
+        displayOrder: 1,
+        icon: "account_balance",
+        tags: ["account", "deposit", "checking", "transaction"],
+        metadata: {
+            regulatoryCategory: "Deposit Account",
+            fdic_insured: true
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "SAVINGS_ACCOUNT",
+        name: "Savings Account",
+        description: "Interest-bearing savings account",
+        category: "ACCOUNT",
+        subcategory: "DEPOSIT",
+        active: true,
+        displayOrder: 2,
+        icon: "savings",
+        tags: ["account", "deposit", "savings", "interest"],
+        metadata: {
+            regulatoryCategory: "Deposit Account",
+            fdic_insured: true
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "MONEY_MARKET_ACCOUNT",
+        name: "Money Market Account",
+        description: "High-yield money market account with check-writing privileges",
+        category: "ACCOUNT",
+        subcategory: "DEPOSIT",
+        active: true,
+        displayOrder: 3,
+        icon: "trending_up",
+        tags: ["account", "deposit", "money_market", "high_yield"],
+        metadata: {
+            regulatoryCategory: "Deposit Account",
+            fdic_insured: true
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "CERTIFICATE_OF_DEPOSIT",
+        name: "Certificate of Deposit (CD)",
+        description: "Time deposit with fixed term and interest rate",
+        category: "ACCOUNT",
+        subcategory: "DEPOSIT",
+        active: true,
+        displayOrder: 4,
+        icon: "receipt_long",
+        tags: ["account", "deposit", "cd", "time_deposit", "fixed_rate"],
+        metadata: {
+            regulatoryCategory: "Deposit Account",
+            fdic_insured: true,
+            typical_terms: ["3 months", "6 months", "1 year", "5 years"]
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "CREDIT_CARD",
+        name: "Credit Card",
+        description: "Revolving credit card account",
+        category: "LENDING",
+        subcategory: "CREDIT",
+        active: true,
+        displayOrder: 10,
+        icon: "credit_card",
+        tags: ["credit", "card", "revolving", "lending"],
+        metadata: {
+            regulatoryCategory: "Credit Product",
+            regulation: "Regulation Z (TILA)"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "PERSONAL_LOAN",
+        name: "Personal Loan",
+        description: "Unsecured personal installment loan",
+        category: "LENDING",
+        subcategory: "LOAN",
+        active: true,
+        displayOrder: 11,
+        icon: "account_balance_wallet",
+        tags: ["loan", "personal", "unsecured", "installment"],
+        metadata: {
+            regulatoryCategory: "Loan Product",
+            regulation: "Regulation Z (TILA)"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "MORTGAGE",
+        name: "Mortgage Loan",
+        description: "Secured real estate mortgage loan",
+        category: "LENDING",
+        subcategory: "LOAN",
+        active: true,
+        displayOrder: 12,
+        icon: "home",
+        tags: ["loan", "mortgage", "secured", "real_estate"],
+        metadata: {
+            regulatoryCategory: "Mortgage",
+            regulation: "Regulation Z (TILA), RESPA"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "BUSINESS_ACCOUNT",
+        name: "Business Account",
+        description: "Commercial business checking or savings account",
+        category: "ACCOUNT",
+        subcategory: "COMMERCIAL",
+        active: true,
+        displayOrder: 5,
+        icon: "business",
+        tags: ["account", "business", "commercial", "corporate"],
+        metadata: {
+            regulatoryCategory: "Commercial Account",
+            fdic_insured: true
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "INVESTMENT_ACCOUNT",
+        name: "Investment Account",
+        description: "Brokerage and investment account",
+        category: "INVESTMENT",
+        subcategory: "BROKERAGE",
+        active: true,
+        displayOrder: 20,
+        icon: "show_chart",
+        tags: ["investment", "brokerage", "securities", "trading"],
+        metadata: {
+            regulatoryCategory: "Investment Product",
+            regulation: "SEC, FINRA",
+            fdic_insured: false
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "CASH_MANAGEMENT",
+        name: "Cash Management",
+        description: "Treasury and cash management services",
+        category: "TREASURY",
+        subcategory: "CASH_MANAGEMENT",
+        active: true,
+        displayOrder: 30,
+        icon: "payments",
+        tags: ["treasury", "cash_management", "corporate", "liquidity"],
+        metadata: {
+            regulatoryCategory: "Treasury Service"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "TREASURY_SERVICE",
+        name: "Treasury Service",
+        description: "Corporate treasury and financial management services",
+        category: "TREASURY",
+        subcategory: "CORPORATE",
+        active: true,
+        displayOrder: 31,
+        icon: "corporate_fare",
+        tags: ["treasury", "corporate", "financial_services"],
+        metadata: {
+            regulatoryCategory: "Treasury Service"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    // Payment Processing Products
+    {
+        typeCode: "ACH_TRANSFER",
+        name: "ACH Transfer",
+        description: "Automated Clearing House electronic transfer",
+        category: "PAYMENT",
+        subcategory: "TRANSFER",
+        active: true,
+        displayOrder: 40,
+        icon: "swap_horiz",
+        tags: ["payment", "ach", "transfer", "electronic"],
+        metadata: {
+            regulatoryCategory: "Payment Service",
+            regulation: "NACHA Rules"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "WIRE_TRANSFER",
+        name: "Wire Transfer",
+        description: "Real-time wire transfer (domestic and international)",
+        category: "PAYMENT",
+        subcategory: "TRANSFER",
+        active: true,
+        displayOrder: 41,
+        icon: "fast_forward",
+        tags: ["payment", "wire", "transfer", "real_time"],
+        metadata: {
+            regulatoryCategory: "Payment Service",
+            regulation: "Fedwire, SWIFT"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "REAL_TIME_PAYMENT",
+        name: "Real-Time Payment (RTP)",
+        description: "Instant payment via RTP network",
+        category: "PAYMENT",
+        subcategory: "TRANSFER",
+        active: true,
+        displayOrder: 42,
+        icon: "flash_on",
+        tags: ["payment", "rtp", "instant", "real_time"],
+        metadata: {
+            regulatoryCategory: "Payment Service",
+            regulation: "The Clearing House RTP"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "P2P_PAYMENT",
+        name: "Peer-to-Peer Payment",
+        description: "Person-to-person payment transfer",
+        category: "PAYMENT",
+        subcategory: "P2P",
+        active: true,
+        displayOrder: 43,
+        icon: "people",
+        tags: ["payment", "p2p", "peer_to_peer", "consumer"],
+        metadata: {
+            regulatoryCategory: "Payment Service"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "BILL_PAYMENT",
+        name: "Bill Payment",
+        description: "Online bill payment service",
+        category: "PAYMENT",
+        subcategory: "BILLPAY",
+        active: true,
+        displayOrder: 44,
+        icon: "receipt",
+        tags: ["payment", "bill_pay", "online", "autopay"],
+        metadata: {
+            regulatoryCategory: "Payment Service"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "CARD_PAYMENT",
+        name: "Card Payment Processing",
+        description: "Debit and credit card payment processing",
+        category: "PAYMENT",
+        subcategory: "CARD",
+        active: true,
+        displayOrder: 45,
+        icon: "payment",
+        tags: ["payment", "card", "processing", "merchant"],
+        metadata: {
+            regulatoryCategory: "Payment Service",
+            regulation: "PCI-DSS"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    },
+    {
+        typeCode: "OTHER",
+        name: "Other Product Type",
+        description: "Miscellaneous product type",
+        category: "OTHER",
+        subcategory: "GENERAL",
+        active: true,
+        displayOrder: 999,
+        icon: "more_horiz",
+        tags: ["other", "miscellaneous"],
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "system",
+        updatedBy: "system"
+    }
+]);
+
+print('Product type definitions inserted: 17 types');
 print('MongoDB initialization completed successfully!');

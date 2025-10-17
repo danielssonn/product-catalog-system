@@ -772,6 +772,118 @@ Poll the `/workflow-status` endpoint to track the submission:
 
 See [ASYNC_WORKFLOW_POLLING.md](ASYNC_WORKFLOW_POLLING.md) for complete documentation.
 
+### Admin API - Product Type Management (ROLE_ADMIN Required)
+
+Business users with ROLE_ADMIN can manage product types dynamically without code deployments.
+
+**Create Product Type:**
+```bash
+POST /api/v1/admin/product-types
+Content-Type: application/json
+
+{
+  "typeCode": "AUTO_LOAN",
+  "name": "Auto Loan",
+  "description": "Automobile financing loan",
+  "category": "LENDING",
+  "subcategory": "LOAN",
+  "active": true,
+  "displayOrder": 13,
+  "icon": "directions_car",
+  "tags": ["loan", "auto", "vehicle"],
+  "metadata": {
+    "regulatoryCategory": "Loan Product"
+  }
+}
+```
+
+**Other Product Type Endpoints:**
+- `GET /api/v1/admin/product-types` - List all product types (paginated)
+- `GET /api/v1/admin/product-types/active` - List active product types
+- `GET /api/v1/admin/product-types/{typeCode}` - Get specific product type
+- `PUT /api/v1/admin/product-types/{typeCode}` - Update product type
+- `PATCH /api/v1/admin/product-types/{typeCode}/deactivate` - Deactivate (soft delete)
+- `PATCH /api/v1/admin/product-types/{typeCode}/reactivate` - Reactivate
+- `DELETE /api/v1/admin/product-types/{typeCode}` - Delete permanently (only if no catalog products reference it)
+- `GET /api/v1/admin/product-types/check-availability/{typeCode}` - Check if type code is available
+- `GET /api/v1/admin/product-types/active/by-category/{category}` - Get types by category
+
+### Admin API - Product Catalog Management (ROLE_ADMIN Required)
+
+Business users with ROLE_ADMIN can seed and manage the master product catalog.
+
+**Create Catalog Product:**
+```bash
+POST /api/v1/admin/catalog
+Content-Type: application/json
+
+{
+  "catalogProductId": "premium-auto-loan-001",
+  "name": "Premium Auto Loan",
+  "description": "Competitive auto financing",
+  "category": "lending",
+  "type": "AUTO_LOAN",
+  "status": "AVAILABLE",
+  "pricingTemplate": {
+    "pricingType": "FIXED",
+    "currency": "USD",
+    "minInterestRate": 3.5,
+    "maxInterestRate": 12.0,
+    "defaultInterestRate": 5.9
+  },
+  "availableFeatures": {
+    "onlineApplication": true,
+    "prequalification": true
+  },
+  "supportedChannels": ["WEB", "MOBILE", "BRANCH"],
+  "productTier": "PREMIUM",
+  "requiresApproval": true
+}
+```
+
+**Other Catalog Management Endpoints:**
+- `GET /api/v1/admin/catalog` - List all catalog products (paginated)
+- `GET /api/v1/admin/catalog/available` - List available catalog products
+- `GET /api/v1/admin/catalog/{catalogProductId}` - Get specific catalog product
+- `PUT /api/v1/admin/catalog/{catalogProductId}` - Update catalog product
+- `DELETE /api/v1/admin/catalog/{catalogProductId}` - Delete catalog product
+- `GET /api/v1/admin/catalog/by-type/{typeCode}` - Get catalog products by type
+- `GET /api/v1/admin/catalog/by-category/{category}` - Get catalog products by category
+- `GET /api/v1/admin/catalog/by-status/{status}` - Get catalog products by status
+- `POST /api/v1/admin/catalog/bulk` - Bulk create catalog products (for initial seeding)
+
+**Bulk Create Example:**
+```bash
+POST /api/v1/admin/catalog/bulk
+Content-Type: application/json
+
+[
+  { "catalogProductId": "product-001", "name": "Product 1", ... },
+  { "catalogProductId": "product-002", "name": "Product 2", ... }
+]
+
+Response:
+{
+  "totalSubmitted": 2,
+  "successCount": 2,
+  "failureCount": 0,
+  "errors": []
+}
+```
+
+**Testing:**
+```bash
+# Run comprehensive test suite
+./test-admin-product-management.sh
+
+# Test coverage:
+# - Product type CRUD operations
+# - Product catalog CRUD operations
+# - Role-based access control (ROLE_ADMIN vs ROLE_USER)
+# - Validation and error handling
+# - Bulk operations
+```
+
 ### Authentication
 All endpoints use HTTP Basic Authentication with credentials from environment variables:
 
@@ -793,6 +905,7 @@ All endpoints use HTTP Basic Authentication with credentials from environment va
 - **Product**: The overarching domain (package name)
 
 ### MongoDB Collections
+- `product_types` - Product type definitions (data-driven)
 - `product_catalog` - Master catalog templates
 - `solutions` - Tenant product instances
 - `categories` - Product categories

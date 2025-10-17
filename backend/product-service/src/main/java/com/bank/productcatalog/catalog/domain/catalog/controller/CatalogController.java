@@ -3,7 +3,6 @@ package com.bank.productcatalog.catalog.domain.catalog.controller;
 import com.bank.product.domain.catalog.service.CatalogService;
 import com.bank.product.domain.catalog.model.CatalogStatus;
 import com.bank.product.domain.catalog.model.ProductCatalog;
-import com.bank.product.domain.catalog.model.ProductType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -65,7 +64,7 @@ public class CatalogController {
             @RequestParam(defaultValue = "ASC") String sortDirection,
             @RequestParam(required = false) CatalogStatus status,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) ProductType type) {
+            @RequestParam(required = false) String type) {
 
         log.info("Fetching catalog products with filters");
 

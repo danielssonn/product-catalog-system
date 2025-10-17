@@ -66,14 +66,16 @@ public class ContextExtractionFilter implements Filter {
         }
 
         try {
-            // Extract and validate context
-            ProcessingContext context = contextExtractor.extractContext(httpRequest);
+            // Try to extract context (returns null if not present, doesn't throw)
+            ProcessingContext context = contextExtractor.tryExtractContext(httpRequest);
 
             if (context != null) {
-                // Validate context
+                // Context present - validate it
                 if (!context.isValid()) {
                     log.warn("Invalid or expired context for request: {}", path);
-                    throw new InvalidContextException("Context has expired or is invalid");
+                    httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED,
+                            "Invalid or expired processing context");
+                    return;
                 }
 
                 // Store context in request attribute
@@ -88,26 +90,18 @@ public class ContextExtractionFilter implements Filter {
                 // No context provided - decide if this is acceptable
                 if (requiresContext(path)) {
                     log.warn("Missing required context for protected endpoint: {}", path);
-                    throw new MissingContextException("X-Processing-Context header is required");
+                    httpResponse.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                            "Missing X-Processing-Context header");
+                    return;
                 } else {
-                    // Allow request without context (for backwards compatibility)
+                    // Allow request without context (for admin/public endpoints)
                     log.debug("Proceeding without context for path: {}", path);
                     chain.doFilter(request, response);
                 }
             }
 
-        } catch (MissingContextException e) {
-            log.error("Missing context for request {}: {}", path, e.getMessage());
-            httpResponse.sendError(HttpServletResponse.SC_BAD_REQUEST,
-                    "Missing X-Processing-Context header");
-
-        } catch (InvalidContextException e) {
-            log.error("Invalid context for request {}: {}", path, e.getMessage());
-            httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED,
-                    "Invalid or expired processing context");
-
         } catch (Exception e) {
-            log.error("Error extracting context for request {}", path, e);
+            log.error("Error processing context for request {}", path, e);
             httpResponse.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error processing request context");
         }
@@ -125,10 +119,15 @@ public class ContextExtractionFilter implements Filter {
     /**
      * Check if endpoint requires context
      *
-     * For now, all non-public endpoints require context.
-     * This can be refined based on specific endpoint patterns.
+     * Admin endpoints are GLOBAL operations (not tenant-scoped) and do not require context.
+     * Regular endpoints require context for tenant isolation.
      */
     private boolean requiresContext(String path) {
+        // Admin endpoints are global - no context required
+        if (path.startsWith("/api/v1/admin/")) {
+            return false;
+        }
+
         // Require context for all solution and catalog operations
         return path.startsWith("/api/v1/solutions") ||
                path.startsWith("/api/v1/catalog") ||

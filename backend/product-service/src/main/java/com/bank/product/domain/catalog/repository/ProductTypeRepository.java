@@ -37,4 +37,9 @@ public interface ProductTypeRepository extends MongoRepository<ProductTypeDefini
      * Find product types by category and subcategory
      */
     List<ProductTypeDefinition> findByCategoryAndSubcategoryAndActiveTrue(String category, String subcategory);
+
+    /**
+     * Find all product types by category (with pagination)
+     */
+    org.springframework.data.domain.Page<ProductTypeDefinition> findByCategory(String category, org.springframework.data.domain.Pageable pageable);
 }

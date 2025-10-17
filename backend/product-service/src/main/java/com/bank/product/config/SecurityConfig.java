@@ -18,8 +18,16 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                // Public endpoints
                 .requestMatchers("/actuator/health").permitAll()
+
+                // Admin-only endpoints (product type and catalog management)
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
+                // Regular authenticated endpoints
                 .requestMatchers("/api/v1/**").authenticated()
+
+                // All other requests require authentication
                 .anyRequest().authenticated()
             )
             .httpBasic(basic -> {})
