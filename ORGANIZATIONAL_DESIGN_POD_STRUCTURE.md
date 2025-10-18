@@ -9,9 +9,9 @@
 **What's New in v3.0:**
 - Organization divided into **3 autonomous pods** based on domain complexity
 - Each pod has dedicated Product Lead + Tech Lead (dual leadership)
-- **Pod 1 "Customer Identity & Trust":** High complexity, senior expertise, graph specialists
-- **Pod 2 "Product Innovation & Automation":** Medium complexity, business domain focus
-- **Pod 3 "Platform Operations & Channels":** Lower complexity, infrastructure focus
+- **Pod 1 "Customer Identity & Tenancy":** High complexity, senior expertise, graph specialists, tenant isolation
+- **Pod 2 "Product Innovation & Automation":** Medium complexity, business domain focus, AI automation
+- **Pod 3 "Platform Operations & Channels":** Lower complexity, infrastructure focus, multi-channel integration
 - Parallel development, reduced dependencies, faster velocity
 
 **Related Documents:**
@@ -48,9 +48,9 @@ Result: Coordination overhead, bottlenecks, context switching
 
 **Pod Approach (3 Autonomous Teams):**
 ```
-Pod 1: Customer Identity & Trust (5-8 FTEs) - Who are our customers? Who can do what?
-Pod 2: Product Innovation & Automation (6-9 FTEs) - What products? How to launch faster?
-Pod 3: Platform Operations & Channels (4-6 FTEs) - How do we deliver? How do we connect?
+Pod 1: Customer Identity & Tenancy (6-8 FTEs) - WHO can do WHAT WHERE?
+Pod 2: Product Innovation & Automation (5-11 FTEs) - What products? How to launch faster?
+Pod 3: Platform Operations & Channels (3-6.5 FTEs) - How do we deliver? How do we connect?
 Result: Parallel development, clear ownership, specialized expertise
 ```
 
@@ -105,36 +105,38 @@ Result: Parallel development, clear ownership, specialized expertise
 
 **Our System Architecture (Microservices):**
 ```
-┌─────────────────────────────────────────────────────┐
-│  Pod 1: Customer Identity & Trust                    │
-│  "Know Your Customer - Enable Trusted Relationships" │
-│  - party-service (Neo4j, context resolution)         │
-│  - auth-service (JWT, OAuth2)                        │
-│  - entitlement-service (ABAC permissions)            │
-└─────────────────────────────────────────────────────┘
-           ↓ (API: context, permissions)
-┌─────────────────────────────────────────────────────┐
-│  Pod 2: Product Innovation & Automation              │
-│  "Launch Products Faster - Automate Approvals"       │
-│  - product-service (catalog, solutions)              │
-│  - workflow-service (Temporal, AI agents)            │
-│  - tenant-service (multi-tenant config)              │
-└─────────────────────────────────────────────────────┘
-           ↓ (API: routing, monitoring)
-┌─────────────────────────────────────────────────────┐
-│  Pod 3: Platform Operations & Channels               │
-│  "Keep It Running - Connect All Channels"            │
-│  - api-gateway (routing, rate limiting)              │
-│  - audit-service (logging, compliance)               │
-│  - notification-service (email, SMS)                 │
-│  - DevOps tooling (CI/CD, monitoring)                │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  Pod 1: Customer Identity & Tenancy                       │
+│  "WHO can do WHAT WHERE?"                                 │
+│  - party-service (Neo4j, party/relationship management)   │
+│  - auth-service (JWT, OAuth2, user-to-party mapping)      │
+│  - tenant-service (tenant config, limits, isolation) ⭐    │
+│  - entitlement-service (ABAC permissions)                 │
+└──────────────────────────────────────────────────────────┘
+           ↓ (API: ProcessingContext = {tenant, party, permissions})
+┌──────────────────────────────────────────────────────────┐
+│  Pod 2: Product Innovation & Automation                   │
+│  "Launch Products Faster - Automate Approvals"            │
+│  - product-service (catalog, solutions)                   │
+│  - workflow-service (Temporal, AI agents)                 │
+└──────────────────────────────────────────────────────────┘
+           ↓ (Events: Kafka audit/notification)
+┌──────────────────────────────────────────────────────────┐
+│  Pod 3: Platform Operations & Channels                    │
+│  "Keep It Running - Connect All Channels"                 │
+│  - api-gateway (routing, rate limiting, context inject)   │
+│  - audit-service (logging, compliance)                    │
+│  - notification-service (email, SMS)                      │
+│  - DevOps tooling (CI/CD, monitoring)                     │
+└──────────────────────────────────────────────────────────┘
 ```
 
 **Organizational Structure Mirrors Architecture:**
-- **Pod 1 "Customer Identity & Trust"** owns party/identity microservices
+- **Pod 1 "Customer Identity & Tenancy"** owns party/identity/tenant microservices ⭐
 - **Pod 2 "Product Innovation & Automation"** owns product/workflow microservices
 - **Pod 3 "Platform Operations & Channels"** owns platform/integration microservices
+
+**⭐ Key Change:** tenant-service moved to Pod 1 (Identity & Tenancy bounded context)
 
 **Result:** Natural boundaries, minimal cross-team coordination
 
@@ -173,37 +175,50 @@ Result: Parallel development, clear ownership, specialized expertise
 | **party-service** | Pod 1 | Neo4j graph, complex party model, entity resolution |
 | **auth-service** | Pod 1 | Authentication, JWT, user-to-party mapping |
 | **entitlement-service** | Pod 1 | ABAC permissions, relationship-based entitlements |
+| **tenant-service** | Pod 1 | Multi-tenant config (tenant IS identity - organizational boundary) |
 | **product-service** | Pod 2 | Product catalog, solutions, business domain |
 | **workflow-service** | Pod 2 | Temporal workflows, AI agents, approval orchestration |
-| **tenant-service** | Pod 2 | Multi-tenant configuration (close to product domain) |
 | **api-gateway** | Pod 3 | Routing, context injection, rate limiting |
 | **audit-service** | Pod 3 | Logging, compliance, event consumption |
 | **notification-service** | Pod 3 | Email, SMS, Kafka consumer |
 | **DevOps tooling** | Pod 3 | CI/CD, monitoring, infrastructure |
 
+**Note:** tenant-service moved to Pod 1 because:
+- Tenant is an organizational identity concept (WHO operates WHERE)
+- Context resolution requires both tenant + party atomically (<100ms target)
+- Party-to-tenant relationship is core to identity domain (Neo4j: EMPLOYED_BY)
+- Avoids cross-pod dependency on every request
+
 ---
 
-## Pod 1: Customer Identity & Trust
+## Pod 1: Customer Identity & Tenancy
 
-**Business-Friendly Name:** "Customer Identity & Trust"
-**Elevator Pitch:** "Know who your customers are, what they can do, and ensure zero unauthorized access"
+**Business-Friendly Name:** "Customer Identity & Tenancy"
+**Elevator Pitch:** "Know who your customers are, which tenant they belong to, what they can do, and ensure zero unauthorized access"
 
 ### Domain Ownership
 
-**Mission:** Provide trusted identity and relationship management for all platform operations
+**Mission:** Provide trusted identity, multi-tenancy, and relationship management for all platform operations
+
+**Bounded Context:** "Identity & Multi-Tenancy Domain"
+- **Core Question:** WHO (party) can do WHAT (permissions) WHERE (tenant)?
+- **Domain Model:** Tenant → Party → Permissions → Context
+- **Performance Contract:** Context resolution <100ms (cached), <2s (cold)
 
 **Core Capabilities:**
 - **Party Management:** Organizations, legal entities, individuals, addresses
-- **Context Resolution:** WHO (party) + WHAT/WHERE (permissions, tenant)
+- **Multi-Tenant Configuration:** Tenant onboarding, tenant-specific settings, organizational boundaries
+- **Context Resolution:** WHO (party) + WHERE (tenant) + WHAT (permissions) → ProcessingContext
 - **Relationship Management:** PARENT_OF, EMPLOYED_BY, AUTHORIZED_SIGNER, MANAGES_ON_BEHALF_OF
 - **Entity Resolution:** Duplicate detection, phonetic matching, UBO calculation
 - **Fine-Grained Entitlements:** ABAC permissions (resource-scoped, constraint-based)
 - **Authentication:** JWT tokens, OAuth2, user-to-party mapping
 
 **Services Owned:**
-- party-service (Neo4j, graph analytics)
-- auth-service (JWT, authentication)
-- entitlement-service (ABAC permissions) - *introduced in Phase 2*
+- **party-service** - Party management, Neo4j graph, context resolution
+- **auth-service** - JWT authentication, OAuth2, user-to-party mapping
+- **tenant-service** - Multi-tenant configuration, onboarding, tenant limits, isolation
+- **entitlement-service** - ABAC permissions, resource-scoped entitlements (Phase 2+)
 
 **Why High Complexity:**
 - **Graph thinking** (different from relational SQL)
@@ -234,20 +249,23 @@ Result: Parallel development, clear ownership, specialized expertise
   - **Month 3-4:** Performance tuning (<100ms cached), initial data load (100-1K parties)
   - **Skills:** Neo4j Certified Professional, Cypher expert, graph algorithms, performance tuning
 
-- **1x Senior Backend Engineer** (Security focus)
+- **1x Senior Backend Engineer** (Security & Identity focus)
   - **Month 1-2:** auth-service (JWT, OAuth2, user-to-party mapping)
+  - **Month 2-3:** tenant-service (tenant onboarding, configuration, limits)
   - **Month 3-4:** Security hardening, secrets management (Vault)
-  - **Skills:** Spring Security, OAuth2/OIDC, JWT, cryptography basics
+  - **Skills:** Spring Security, OAuth2/OIDC, JWT, multi-tenancy patterns
 
 - **1x Mid-Level Backend Engineer** (Support engineer)
-  - Assists senior engineers with CRUD operations, testing, documentation
+  - Assists senior engineers with CRUD operations, tenant APIs, testing
   - Learns graph database concepts (path to becoming graph specialist)
   - **Skills:** Java/Spring Boot, REST APIs, willing to learn Neo4j
 
-- **1x QA Engineer** (Security testing focus)
-  - Context resolution testing (verify party context propagates correctly)
-  - Security testing (cross-tenant isolation, permission boundaries)
-  - Performance testing (context resolution <100ms target)
+- **1x QA Engineer** (Security & isolation testing)
+  - **Context resolution testing:** Verify party + tenant context propagates correctly
+  - **Tenant isolation testing:** Zero cross-tenant data leaks (critical security requirement)
+  - **Permission boundaries:** ABAC entitlement validation
+  - **Performance testing:** Context resolution <100ms target
+  - **Skills:** Security testing, automated testing (JUnit, TestNG), performance testing (JMeter)
 
 **Phase 2 (Months 5-7): 6-7 FTEs (+1 Security Engineer)**
 
@@ -341,12 +359,10 @@ Response: { "allowed": true, "constraints": { "maxAmount": 50000 } }
 - **Workflow Orchestration:** Temporal-based approval workflows
 - **AI Automation:** Claude-powered document validation, agentic workflows
 - **Rule Engine:** DMN-based decision tables for dynamic routing
-- **Multi-Tenant Configuration:** Tenant-specific settings and limits
 
 **Services Owned:**
-- product-service (MongoDB, product catalog, solutions)
-- workflow-service (Temporal, AI agents, DMN rules)
-- tenant-service (multi-tenant configuration)
+- **product-service** - Product catalog, solutions, configuration API
+- **workflow-service** - Temporal workflows, AI agents, DMN rule engine
 
 **Why Medium Complexity:**
 - **Business domain focus** (product modeling, workflow design)
@@ -370,14 +386,13 @@ Response: { "allowed": true, "constraints": { "maxAmount": 50000 } }
   - **Skills:** Temporal expert, Kafka, MongoDB, microservices architecture
   - **Time:** 30% architecture, 25% code review, 20% hands-on coding, 15% cross-pod coordination, 10% incident response
 
-**Engineering (3-4 FTEs):**
+**Engineering (2-3 FTEs):**
 - **2x Senior Backend Engineers** (Java/Spring Boot)
   - **Engineer #1:** product-service (catalog CRUD, solution management, outbox pattern)
   - **Engineer #2:** workflow-service (Temporal workflows, DMN rule engine, manual approval)
   - **Skills:** Spring Boot, MongoDB, Temporal, Kafka
 
-- **1x Mid-Level Backend Engineer**
-  - tenant-service implementation (multi-tenant configuration)
+- **1x Mid-Level Backend Engineer** (optional)
   - Assists with feature development, testing, documentation
   - **Skills:** Java/Spring Boot, MongoDB, REST APIs
 
@@ -496,10 +511,10 @@ Response: {
 - **Multi-Channel Integration:** Core banking, mobile, ATM, partner APIs (Phase 5)
 
 **Services Owned:**
-- api-gateway (Spring Cloud Gateway, routing, rate limiting)
-- audit-service (MongoDB, Kafka consumer, compliance logging)
-- notification-service (Kafka consumer, SMTP, SMS providers)
-- DevOps tooling (Jenkins/GitHub Actions, Terraform, Kubernetes, monitoring)
+- **api-gateway** - Spring Cloud Gateway, routing, rate limiting, context injection
+- **audit-service** - MongoDB, Kafka consumer, compliance logging
+- **notification-service** - Kafka consumer, SMTP, SMS providers
+- **DevOps tooling** - Jenkins/GitHub Actions, Terraform, Kubernetes, monitoring
 
 **Why Lower Complexity:**
 - **Infrastructure focus** (less business logic, more configuration)
@@ -520,21 +535,21 @@ Response: {
   - **Time:** 30% architecture, 30% hands-on (infrastructure work), 20% incident response, 20% automation
   - **Note:** No dedicated Product Lead in Phase 1-2 (Tech Lead reports to Platform Product Director or CTO)
 
-**Engineering (2-3 FTEs):**
+**Engineering (1.5-2.5 FTEs):**
 - **1x DevOps Engineer** (Infrastructure specialist)
   - **Month 1:** Infrastructure setup (MongoDB, Neo4j, Kafka, Redis, Temporal, Kubernetes)
   - **Month 2-3:** CI/CD pipelines (GitHub Actions, Docker builds, Kubernetes deployment)
   - **Month 4:** Monitoring (Prometheus, Grafana), logging (ELK/Loki)
   - **Skills:** Kubernetes, Docker, Terraform, CI/CD, Prometheus, Grafana
 
-- **1x Mid-Level Backend Engineer** (Platform services)
-  - audit-service (Kafka consumer, MongoDB audit logs)
-  - notification-service (Kafka consumer, SMTP/SendGrid)
+- **1x Mid-Level Backend Engineer** (Platform services, 0.5-1 FTE)
+  - **audit-service** (Kafka consumer, MongoDB audit logs)
+  - **notification-service** (Kafka consumer, SMTP/SendGrid)
   - **Skills:** Java/Spring Boot, Kafka, MongoDB, SMTP integration
 
-- **1x Backend Engineer** (API Gateway, 0.5-1 FTE)
-  - api-gateway setup (Spring Cloud Gateway)
-  - Context injection (calls party-service for context resolution)
+- **1x Backend Engineer** (API Gateway, 0.5 FTE)
+  - **api-gateway** setup (Spring Cloud Gateway)
+  - Context injection (calls Pod 1 party-service for context resolution)
   - Rate limiting, routing, health checks
   - **Skills:** Spring Cloud Gateway, REST APIs, caching (Redis)
 
@@ -818,11 +833,11 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | QA | Total |
 |-----|------------|-------------|-----|-------|
-| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) | QA (1) | **6 FTEs** |
-| **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (2) + Mid-Level (1) + Full-Stack (1) | - | **6 FTEs** |
-| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | **3.5 FTEs** |
+| **Pod 1: Customer Identity & Tenancy** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) | QA (1) | **6 FTEs** |
+| **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (2) + Mid-Level (0-1) + Full-Stack (1) | - | **5-6 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1-1.5) | - | **3-3.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | **1 FTE** |
-| **Total** | | | | **16.5 FTEs** |
+| **Total** | | | | **15-16.5 FTEs** |
 
 **Budget:** $900K - $1.05M
 
@@ -836,11 +851,11 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | QA/Security | Total |
 |-----|------------|-------------|-------------|-------|
-| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + **Security Engineer (1)** | QA (1) | **7 FTEs** |
+| **Pod 1: Customer Identity & Tenancy** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + **Security Engineer (1)** | QA (1) | **7 FTEs** |
 | **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (2) + Mid-Level (1) + Full-Stack (1) | QA (1) | **7 FTEs** |
-| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1.5) | QA (1, shared) | **4.5 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1-1.5) | QA (1, shared) | **4-4.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | **1 FTE** |
-| **Total** | | | | **19.5 FTEs** |
+| **Total** | | | | **19-19.5 FTEs** |
 
 **Budget:** $1.1M - $1.3M
 
@@ -850,11 +865,11 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | AI/ML | QA/Security | Total |
 |-----|------------|-------------|-------|-------------|-------|
-| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | - | QA (1) | **7 FTEs** |
+| **Pod 1: Customer Identity & Tenancy** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | - | QA (1) | **7 FTEs** |
 | **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (1) | **AI Engineer (1) + Data Scientist (1) + ML Ops (1)** | QA (1) | **11 FTEs** |
-| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | QA (1) | **4.5 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1-1.5) | - | QA (1) | **4-4.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | - | **1 FTE** |
-| **Total** | | | | | **23.5 FTEs** |
+| **Total** | | | | | **23-23.5 FTEs** |
 
 **Budget:** $1.3M - $1.55M
 
@@ -867,11 +882,11 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | AI/ML | QA/Security | Total |
 |-----|------------|-------------|-------|-------------|-------|
-| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | **Data Scientist (1, optional)** | QA (1) | **7-8 FTEs** |
+| **Pod 1: Customer Identity & Tenancy** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | **Data Scientist (1, optional)** | QA (1) | **7-8 FTEs** |
 | **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (1) | **ML Ops (1)** | QA (1) | **9 FTEs** |
-| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | QA (1) | **4.5 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1-1.5) | - | QA (1) | **4-4.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | - | **1 FTE** |
-| **Total** | | | | | **21.5-22.5 FTEs** |
+| **Total** | | | | | **21-22.5 FTEs** |
 
 **Budget:** $1.2M - $1.4M
 
@@ -881,11 +896,11 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | AI/ML | QA/Security | Total |
 |-----|------------|-------------|-------|-------------|-------|
-| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | - | QA (1) | **7 FTEs** |
+| **Pod 1: Customer Identity & Tenancy** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | - | QA (1) | **7 FTEs** |
 | **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (2) | **ML Ops (1)** | QA (1) | **10 FTEs** |
-| **Pod 3: Platform Operations & Channels** | **Product Lead (1)** + Tech Lead (1) | DevOps (1) + Backend (1.5) + **Integration Architect (1)** | - | QA (1) | **6.5 FTEs** |
+| **Pod 3: Platform Operations & Channels** | **Product Lead (1)** + Tech Lead (1) | DevOps (1) + Backend (1-1.5) + **Integration Architect (1)** | - | QA (1) | **6-6.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | - | **1 FTE** |
-| **Total** | | | | | **24.5 FTEs** |
+| **Total** | | | | | **24-24.5 FTEs** |
 
 **Budget:** $1.35M - $1.6M
 
@@ -897,7 +912,7 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | Total |
 |-----|------------|-------------|-------|
-| **Pod 1: Customer Identity & Trust** | Tech Lead (0.5) | Senior Graph (0.5) + Senior Backend (1) | **2 FTEs** |
+| **Pod 1: Customer Identity & Tenancy** | Tech Lead (0.5) | Senior Graph (0.5) + Senior Backend (1) | **2 FTEs** |
 | **Pod 2: Product Innovation & Automation** | Tech Lead (0.5) + Product Lead (0.5) | Senior Backend (2) + Full-Stack (1) | **4 FTEs** |
 | **Pod 3: Platform Operations & Channels** | Tech Lead (0.5) + Product Lead (0.5) | DevOps (1) + Integration (0.5) | **2.5 FTEs** |
 | **Shared** | Engineering Manager (0.5) | Support Engineer (1) + QA (1) | **2.5 FTEs** |
@@ -913,9 +928,10 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 ### Pod-Level Metrics
 
-**Pod 1: Customer Identity & Trust**
-- Context resolution latency: <100ms (p95)
-- Cross-tenant leaks: 0 incidents
+**Pod 1: Customer Identity & Tenancy**
+- Context resolution latency: <100ms (p95, cached), <2s (cold)
+- Cross-tenant leaks: 0 incidents (CRITICAL security metric)
+- Tenant isolation accuracy: 100% (zero cross-tenant data access)
 - Entity resolution accuracy: Precision ≥95%, Recall ≥90%
 - Neo4j query performance: <500ms (p90)
 
