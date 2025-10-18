@@ -9,9 +9,9 @@
 **What's New in v3.0:**
 - Organization divided into **3 autonomous pods** based on domain complexity
 - Each pod has dedicated Product Lead + Tech Lead (dual leadership)
-- **Pod 1 (Party & Identity):** High complexity, senior expertise, graph specialists
-- **Pod 2 (Product & Workflow):** Medium complexity, business domain focus
-- **Pod 3 (Platform & Integration):** Lower complexity, infrastructure focus
+- **Pod 1 "Customer Identity & Trust":** High complexity, senior expertise, graph specialists
+- **Pod 2 "Product Innovation & Automation":** Medium complexity, business domain focus
+- **Pod 3 "Platform Operations & Channels":** Lower complexity, infrastructure focus
 - Parallel development, reduced dependencies, faster velocity
 
 **Related Documents:**
@@ -26,9 +26,9 @@
 1. [Executive Summary](#executive-summary)
 2. [Why Pod Structure?](#why-pod-structure)
 3. [Pod Architecture](#pod-architecture)
-4. [Pod 1: Party & Identity Domain](#pod-1-party--identity-domain)
-5. [Pod 2: Product & Workflow Domain](#pod-2-product--workflow-domain)
-6. [Pod 3: Platform & Integration Domain](#pod-3-platform--integration-domain)
+4. [Pod 1: Customer Identity & Trust](#pod-1-customer-identity--trust)
+5. [Pod 2: Product Innovation & Automation](#pod-2-product-innovation--automation)
+6. [Pod 3: Platform Operations & Channels](#pod-3-platform-operations--channels)
 7. [Cross-Pod Coordination](#cross-pod-coordination)
 8. [Leadership Structure](#leadership-structure)
 9. [Team Sizing by Phase](#team-sizing-by-phase)
@@ -48,9 +48,9 @@ Result: Coordination overhead, bottlenecks, context switching
 
 **Pod Approach (3 Autonomous Teams):**
 ```
-Pod 1: Party & Identity (5-8 FTEs) - High complexity, graph specialists
-Pod 2: Product & Workflow (6-9 FTEs) - Business domain, catalog experts
-Pod 3: Platform & Integration (4-6 FTEs) - Infrastructure, DevOps, tooling
+Pod 1: Customer Identity & Trust (5-8 FTEs) - Who are our customers? Who can do what?
+Pod 2: Product Innovation & Automation (6-9 FTEs) - What products? How to launch faster?
+Pod 3: Platform Operations & Channels (4-6 FTEs) - How do we deliver? How do we connect?
 Result: Parallel development, clear ownership, specialized expertise
 ```
 
@@ -105,33 +105,36 @@ Result: Parallel development, clear ownership, specialized expertise
 
 **Our System Architecture (Microservices):**
 ```
-┌─────────────────────────────────────────────┐
-│  Pod 1: Party & Identity Domain              │
-│  - party-service (Neo4j, context resolution) │
-│  - auth-service (JWT, OAuth2)                │
-│  - entitlement-service (ABAC permissions)    │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  Pod 1: Customer Identity & Trust                    │
+│  "Know Your Customer - Enable Trusted Relationships" │
+│  - party-service (Neo4j, context resolution)         │
+│  - auth-service (JWT, OAuth2)                        │
+│  - entitlement-service (ABAC permissions)            │
+└─────────────────────────────────────────────────────┘
            ↓ (API: context, permissions)
-┌─────────────────────────────────────────────┐
-│  Pod 2: Product & Workflow Domain            │
-│  - product-service (catalog, solutions)      │
-│  - workflow-service (Temporal, AI agents)    │
-│  - tenant-service (multi-tenant config)      │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  Pod 2: Product Innovation & Automation              │
+│  "Launch Products Faster - Automate Approvals"       │
+│  - product-service (catalog, solutions)              │
+│  - workflow-service (Temporal, AI agents)            │
+│  - tenant-service (multi-tenant config)              │
+└─────────────────────────────────────────────────────┘
            ↓ (API: routing, monitoring)
-┌─────────────────────────────────────────────┐
-│  Pod 3: Platform & Integration Domain        │
-│  - api-gateway (routing, rate limiting)      │
-│  - audit-service (logging, compliance)       │
-│  - notification-service (email, SMS)         │
-│  - DevOps tooling (CI/CD, monitoring)        │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  Pod 3: Platform Operations & Channels               │
+│  "Keep It Running - Connect All Channels"            │
+│  - api-gateway (routing, rate limiting)              │
+│  - audit-service (logging, compliance)               │
+│  - notification-service (email, SMS)                 │
+│  - DevOps tooling (CI/CD, monitoring)                │
+└─────────────────────────────────────────────────────┘
 ```
 
 **Organizational Structure Mirrors Architecture:**
-- **Pod 1** owns party/identity microservices
-- **Pod 2** owns product/workflow microservices
-- **Pod 3** owns platform/integration microservices
+- **Pod 1 "Customer Identity & Trust"** owns party/identity microservices
+- **Pod 2 "Product Innovation & Automation"** owns product/workflow microservices
+- **Pod 3 "Platform Operations & Channels"** owns platform/integration microservices
 
 **Result:** Natural boundaries, minimal cross-team coordination
 
@@ -180,7 +183,10 @@ Result: Parallel development, clear ownership, specialized expertise
 
 ---
 
-## Pod 1: Party & Identity Domain
+## Pod 1: Customer Identity & Trust
+
+**Business-Friendly Name:** "Customer Identity & Trust"
+**Elevator Pitch:** "Know who your customers are, what they can do, and ensure zero unauthorized access"
 
 ### Domain Ownership
 
@@ -320,7 +326,10 @@ Response: { "allowed": true, "constraints": { "maxAmount": 50000 } }
 
 ---
 
-## Pod 2: Product & Workflow Domain
+## Pod 2: Product Innovation & Automation
+
+**Business-Friendly Name:** "Product Innovation & Automation"
+**Elevator Pitch:** "Launch products in 2 days instead of 50 days with AI-powered approvals"
 
 ### Domain Ownership
 
@@ -469,7 +478,10 @@ Response: {
 
 ---
 
-## Pod 3: Platform & Integration Domain
+## Pod 3: Platform Operations & Channels
+
+**Business-Friendly Name:** "Platform Operations & Channels"
+**Elevator Pitch:** "Keep the platform running 24/7 and connect all customer touchpoints (web, mobile, core banking)"
 
 ### Domain Ownership
 
@@ -806,9 +818,9 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | QA | Total |
 |-----|------------|-------------|-----|-------|
-| **Pod 1 (Party)** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) | QA (1) | **6 FTEs** |
-| **Pod 2 (Product)** | Product Lead (1) + Tech Lead (1) | Senior Backend (2) + Mid-Level (1) + Full-Stack (1) | - | **6 FTEs** |
-| **Pod 3 (Platform)** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | **3.5 FTEs** |
+| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) | QA (1) | **6 FTEs** |
+| **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (2) + Mid-Level (1) + Full-Stack (1) | - | **6 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | **3.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | **1 FTE** |
 | **Total** | | | | **16.5 FTEs** |
 
@@ -824,9 +836,9 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | QA/Security | Total |
 |-----|------------|-------------|-------------|-------|
-| **Pod 1 (Party)** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + **Security Engineer (1)** | QA (1) | **7 FTEs** |
-| **Pod 2 (Product)** | Product Lead (1) + Tech Lead (1) | Senior Backend (2) + Mid-Level (1) + Full-Stack (1) | QA (1) | **7 FTEs** |
-| **Pod 3 (Platform)** | Tech Lead (1) | DevOps (1) + Backend (1.5) | QA (1, shared) | **4.5 FTEs** |
+| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + **Security Engineer (1)** | QA (1) | **7 FTEs** |
+| **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (2) + Mid-Level (1) + Full-Stack (1) | QA (1) | **7 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1.5) | QA (1, shared) | **4.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | **1 FTE** |
 | **Total** | | | | **19.5 FTEs** |
 
@@ -838,9 +850,9 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | AI/ML | QA/Security | Total |
 |-----|------------|-------------|-------|-------------|-------|
-| **Pod 1 (Party)** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | - | QA (1) | **7 FTEs** |
-| **Pod 2 (Product)** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (1) | **AI Engineer (1) + Data Scientist (1) + ML Ops (1)** | QA (1) | **11 FTEs** |
-| **Pod 3 (Platform)** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | QA (1) | **4.5 FTEs** |
+| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | - | QA (1) | **7 FTEs** |
+| **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (1) | **AI Engineer (1) + Data Scientist (1) + ML Ops (1)** | QA (1) | **11 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | QA (1) | **4.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | - | **1 FTE** |
 | **Total** | | | | | **23.5 FTEs** |
 
@@ -855,9 +867,9 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | AI/ML | QA/Security | Total |
 |-----|------------|-------------|-------|-------------|-------|
-| **Pod 1 (Party)** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | **Data Scientist (1, optional)** | QA (1) | **7-8 FTEs** |
-| **Pod 2 (Product)** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (1) | **ML Ops (1)** | QA (1) | **9 FTEs** |
-| **Pod 3 (Platform)** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | QA (1) | **4.5 FTEs** |
+| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | **Data Scientist (1, optional)** | QA (1) | **7-8 FTEs** |
+| **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (1) | **ML Ops (1)** | QA (1) | **9 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (1) | DevOps (1) + Backend (1.5) | - | QA (1) | **4.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | - | **1 FTE** |
 | **Total** | | | | | **21.5-22.5 FTEs** |
 
@@ -869,9 +881,9 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | AI/ML | QA/Security | Total |
 |-----|------------|-------------|-------|-------------|-------|
-| **Pod 1 (Party)** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | - | QA (1) | **7 FTEs** |
-| **Pod 2 (Product)** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (2) | **ML Ops (1)** | QA (1) | **10 FTEs** |
-| **Pod 3 (Platform)** | **Product Lead (1)** + Tech Lead (1) | DevOps (1) + Backend (1.5) + **Integration Architect (1)** | - | QA (1) | **6.5 FTEs** |
+| **Pod 1: Customer Identity & Trust** | Product Lead (1) + Tech Lead (1) | Senior Graph (1) + Senior Backend (1) + Mid-Level (1) + Security (1) | - | QA (1) | **7 FTEs** |
+| **Pod 2: Product Innovation & Automation** | Product Lead (1) + Tech Lead (1) | Senior Backend (3) + Mid-Level (1) + Full-Stack (2) | **ML Ops (1)** | QA (1) | **10 FTEs** |
+| **Pod 3: Platform Operations & Channels** | **Product Lead (1)** + Tech Lead (1) | DevOps (1) + Backend (1.5) + **Integration Architect (1)** | - | QA (1) | **6.5 FTEs** |
 | **Shared** | Engineering Manager (1) | - | - | - | **1 FTE** |
 | **Total** | | | | | **24.5 FTEs** |
 
@@ -885,9 +897,9 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 | Pod | Leadership | Engineering | Total |
 |-----|------------|-------------|-------|
-| **Pod 1 (Party)** | Tech Lead (0.5) | Senior Graph (0.5) + Senior Backend (1) | **2 FTEs** |
-| **Pod 2 (Product)** | Tech Lead (0.5) + Product Lead (0.5) | Senior Backend (2) + Full-Stack (1) | **4 FTEs** |
-| **Pod 3 (Platform)** | Tech Lead (0.5) + Product Lead (0.5) | DevOps (1) + Integration (0.5) | **2.5 FTEs** |
+| **Pod 1: Customer Identity & Trust** | Tech Lead (0.5) | Senior Graph (0.5) + Senior Backend (1) | **2 FTEs** |
+| **Pod 2: Product Innovation & Automation** | Tech Lead (0.5) + Product Lead (0.5) | Senior Backend (2) + Full-Stack (1) | **4 FTEs** |
+| **Pod 3: Platform Operations & Channels** | Tech Lead (0.5) + Product Lead (0.5) | DevOps (1) + Integration (0.5) | **2.5 FTEs** |
 | **Shared** | Engineering Manager (0.5) | Support Engineer (1) + QA (1) | **2.5 FTEs** |
 | **Total** | | | **11 FTEs** |
 
@@ -901,19 +913,19 @@ Pod 1 Engineers  Pod 2 Engineers  Pod 3 Engineers
 
 ### Pod-Level Metrics
 
-**Pod 1 (Party & Identity):**
+**Pod 1: Customer Identity & Trust**
 - Context resolution latency: <100ms (p95)
 - Cross-tenant leaks: 0 incidents
 - Entity resolution accuracy: Precision ≥95%, Recall ≥90%
 - Neo4j query performance: <500ms (p90)
 
-**Pod 2 (Product & Workflow):**
+**Pod 2: Product Innovation & Automation**
 - Time-to-market: 50 days → 2 days (96% improvement)
 - Auto-approval rate: 80%
 - AI document accuracy: Precision ≥95%, Recall ≥90%
 - Workflow latency: <2s submission, <5s AI processing
 
-**Pod 3 (Platform & Integration):**
+**Pod 3: Platform Operations & Channels**
 - Platform uptime: 99.9%
 - Deployment frequency: 10+ deployments/week
 - MTTR: <2 hours
