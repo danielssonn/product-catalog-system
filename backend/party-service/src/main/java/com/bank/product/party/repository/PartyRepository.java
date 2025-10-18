@@ -27,6 +27,13 @@ public interface PartyRepository extends Neo4jRepository<Party, String> {
     List<Party> findByStatus(PartyStatus status);
 
     /**
+     * Find organization by legal name (case-insensitive)
+     * Used for entity reference resolution
+     */
+    @Query("MATCH (o:Organization) WHERE toLower(o.legalName) = toLower($legalName) RETURN o")
+    List<Party> findByLegalNameIgnoreCase(@Param("legalName") String legalName);
+
+    /**
      * Find parties sourced from a specific source system
      */
     @Query("MATCH (p:Party)-[:SOURCED_FROM]->(s:SourceRecord {sourceSystem: $sourceSystem}) RETURN p")

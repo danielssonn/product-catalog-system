@@ -37,6 +37,25 @@ public class CollateralDocument {
     private String title;
 
     /**
+     * Raw document content (PDF, image, etc.) stored as byte array
+     * For large documents, consider storing in S3/Azure Blob and keeping only the URL
+     */
+    private byte[] content;
+
+    /**
+     * SHA-256 hash of document content for deduplication and verification
+     * Used for document-based identity verification in entity resolution
+     */
+    private String contentHash;
+
+    /**
+     * Extracted structured data from document (JSON format)
+     * Populated by DocumentExtractionService using AI
+     * Examples: W9Data, IncorporationData, IncumbencyCertificateData
+     */
+    private String extractedData;
+
+    /**
      * Document description
      */
     private String description;
@@ -129,6 +148,7 @@ public class CollateralDocument {
     }
 
     public enum DocumentType {
+        // Relationship documents
         SERVICE_AGREEMENT("Service Agreement"),
         CUSTODY_AGREEMENT("Custody Agreement"),
         POWER_OF_ATTORNEY("Power of Attorney"),
@@ -137,6 +157,19 @@ public class CollateralDocument {
         COLLATERAL_AGREEMENT("Collateral Agreement"),
         NETTING_AGREEMENT("Netting Agreement"),
         ISDA_MASTER("ISDA Master Agreement"),
+
+        // Identity verification documents (entity resolution)
+        W9_FORM("IRS Form W-9 (US Tax Form)"),
+        W8BEN_FORM("IRS Form W-8BEN (Foreign Entity Tax Form)"),
+        CERTIFICATE_OF_INCORPORATION("Certificate of Incorporation"),
+        ARTICLES_OF_ORGANIZATION("Articles of Organization (LLC)"),
+        INCUMBENCY_CERTIFICATE("Incumbency Certificate"),
+        BENEFICIAL_OWNERSHIP_CERTIFICATION("Beneficial Ownership Certification"),
+        CERTIFICATE_OF_GOOD_STANDING("Certificate of Good Standing"),
+        OPERATING_AGREEMENT("Operating Agreement"),
+        PARTNERSHIP_AGREEMENT("Partnership Agreement"),
+        TRUST_AGREEMENT("Trust Agreement"),
+
         OTHER("Other");
 
         private final String displayName;
