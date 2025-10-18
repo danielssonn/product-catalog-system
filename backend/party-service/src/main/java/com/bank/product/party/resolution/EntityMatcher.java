@@ -2,6 +2,9 @@ package com.bank.product.party.resolution;
 
 import com.bank.product.party.domain.Organization;
 import com.bank.product.party.domain.Party;
+import com.bank.product.party.matching.PhoneticMatcher;
+import com.bank.product.party.matching.AddressNormalizer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -11,15 +14,23 @@ import java.util.List;
 /**
  * Entity matching component for entity resolution.
  * Implements various matching strategies to identify duplicate entities.
+ *
+ * Enhanced with phonetic matching and address normalization for improved accuracy.
  */
 @Component
+@RequiredArgsConstructor
 @Slf4j
 public class EntityMatcher {
+
+    private final PhoneticMatcher phoneticMatcher;
+    private final AddressNormalizer addressNormalizer;
 
     // Matching thresholds
     private static final double AUTO_MERGE_THRESHOLD = 0.95;
     private static final double MANUAL_REVIEW_THRESHOLD = 0.75;
     private static final double FUZZY_NAME_THRESHOLD = 0.85;
+    private static final double PHONETIC_NAME_THRESHOLD = 0.90;
+    private static final double ADDRESS_SIMILARITY_THRESHOLD = 0.85;
 
     /**
      * Find candidate matches for a party
@@ -70,49 +81,75 @@ public class EntityMatcher {
 
     /**
      * Calculate similarity for organizations
+     * Enhanced with phonetic matching and address normalization
      */
     private double calculateOrganizationSimilarity(Organization org1, Organization org2) {
         List<Double> scores = new ArrayList<>();
         List<Double> weights = new ArrayList<>();
 
-        // LEI match (highest confidence)
+        // LEI match (highest confidence - exact identifier)
         if (org1.getLei() != null && org2.getLei() != null) {
             scores.add(org1.getLei().equals(org2.getLei()) ? 1.0 : 0.0);
             weights.add(1.0); // Highest weight
         }
 
-        // Registration number + Jurisdiction
+        // Registration number + Jurisdiction (near-exact identifier)
         if (org1.getRegistrationNumber() != null && org2.getRegistrationNumber() != null &&
                 org1.getJurisdiction() != null && org2.getJurisdiction() != null) {
             boolean regMatch = org1.getRegistrationNumber().equals(org2.getRegistrationNumber());
             boolean jurMatch = org1.getJurisdiction().equalsIgnoreCase(org2.getJurisdiction());
             scores.add(regMatch && jurMatch ? 1.0 : 0.0);
-            weights.add(0.9);
+            weights.add(0.95);
         }
 
-        // Legal name fuzzy match
+        // Legal name - Multi-strategy fuzzy matching
         if (org1.getLegalName() != null && org2.getLegalName() != null) {
-            double nameSimilarity = calculateStringSimilarity(
+            // Strategy 1: Phonetic similarity (handles "JPMorgan" vs "J.P. Morgan")
+            double phoneticScore = phoneticMatcher.calculatePhoneticSimilarity(
+                    org1.getLegalName(),
+                    org2.getLegalName()
+            );
+
+            // Strategy 2: Jaro-Winkler (better for common prefixes)
+            double jaroScore = phoneticMatcher.jaroWinklerSimilarity(
                     normalizeLegalName(org1.getLegalName()),
                     normalizeLegalName(org2.getLegalName())
             );
-            scores.add(nameSimilarity);
-            weights.add(0.8);
+
+            // Strategy 3: Levenshtein (character-level similarity)
+            double levenScore = calculateStringSimilarity(
+                    normalizeLegalName(org1.getLegalName()),
+                    normalizeLegalName(org2.getLegalName())
+            );
+
+            // Take maximum score from all strategies
+            double bestNameScore = Math.max(phoneticScore, Math.max(jaroScore, levenScore));
+            scores.add(bestNameScore);
+            weights.add(0.85);
+
+            log.debug("Name matching scores - Phonetic: {}, Jaro-Winkler: {}, Levenshtein: {}, Best: {}",
+                    phoneticScore, jaroScore, levenScore, bestNameScore);
         }
 
-        // Address similarity
+        // TODO: Address similarity with normalization (when Address relationship is added to Organization)
+        // Neo4j graph model currently doesn't have address fields on Organization node
+
+        // Jurisdiction match (lower weight, supplementary)
         if (org1.getJurisdiction() != null && org2.getJurisdiction() != null) {
             scores.add(org1.getJurisdiction().equalsIgnoreCase(org2.getJurisdiction()) ? 1.0 : 0.0);
             weights.add(0.5);
         }
 
-        // Industry code
+        // Industry code (weak signal, but useful tie-breaker)
         if (org1.getIndustryCode() != null && org2.getIndustryCode() != null) {
             scores.add(org1.getIndustryCode().equals(org2.getIndustryCode()) ? 1.0 : 0.0);
             weights.add(0.3);
         }
 
-        return calculateWeightedAverage(scores, weights);
+        double finalScore = calculateWeightedAverage(scores, weights);
+        log.debug("Organization similarity: {} (from {} signals)", finalScore, scores.size());
+
+        return finalScore;
     }
 
     /**

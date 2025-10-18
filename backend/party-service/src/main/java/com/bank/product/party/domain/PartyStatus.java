@@ -32,5 +32,21 @@ public enum PartyStatus {
     /**
      * Pending deletion (soft delete)
      */
-    PENDING_DELETION
+    PENDING_DELETION,
+
+    /**
+     * Placeholder party created from document extraction.
+     * This party was referenced in a document (e.g., parent company in incorporation certificate)
+     * but has not been verified or fully onboarded yet.
+     *
+     * Placeholder parties:
+     * - Have limited information (name, potentially jurisdiction)
+     * - Need human review and verification
+     * - Can be merged with existing parties or upgraded to ACTIVE after verification
+     * - Support predictive graph construction from document data
+     *
+     * @see com.bank.product.party.document.RelationshipExtractionService
+     * @see ENTITY_RESOLUTION_DESIGN.md Section 1C: Predictive Graph Construction
+     */
+    PLACEHOLDER
 }
