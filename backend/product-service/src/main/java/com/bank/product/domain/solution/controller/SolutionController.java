@@ -1,6 +1,8 @@
 package com.bank.product.domain.solution.controller;
 
 import com.bank.product.client.dto.WorkflowSubmitRequest;
+import com.bank.product.context.PermissionContext;
+import com.bank.product.context.ProcessingContext;
 import com.bank.product.domain.solution.dto.ConfigureSolutionRequest;
 import com.bank.product.domain.solution.dto.ConfigureSolutionResponse;
 import com.bank.product.domain.solution.dto.SolutionWorkflowStatusResponse;
@@ -8,6 +10,9 @@ import com.bank.product.domain.solution.service.AsyncWorkflowService;
 import com.bank.product.domain.solution.service.SolutionService;
 import com.bank.product.domain.solution.model.Solution;
 import com.bank.product.domain.solution.model.SolutionStatus;
+import com.bank.product.entitlement.ResourceOperation;
+import com.bank.product.entitlement.ResourceType;
+import com.bank.product.util.ContextHolder;
 import com.github.benmanes.caffeine.cache.Cache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -181,12 +187,43 @@ public class SolutionController {
         }
     }
 
+    /**
+     * Get solution by ID with fine-grained entitlement check
+     *
+     * Checks if the current user has VIEW permission on this specific solution.
+     * Falls back to coarse-grained permissions if no fine-grained entitlements exist.
+     */
     @GetMapping("/{solutionId}")
     public ResponseEntity<Solution> getSolution(
             @RequestHeader("X-Tenant-ID") String tenantId,
             @PathVariable String solutionId) {
 
         log.info("Fetching solution {} for tenant {}", solutionId, tenantId);
+
+        // Check fine-grained entitlement (if context available)
+        if (ContextHolder.hasContext()) {
+            ProcessingContext context = ContextHolder.getRequiredContext();
+            PermissionContext permissions = context.getPermissions();
+
+            if (permissions != null) {
+                // Check resource-specific permission
+                boolean hasAccess = permissions.hasPermissionOnResource(
+                        ResourceOperation.VIEW,
+                        ResourceType.SOLUTION,
+                        solutionId);
+
+                if (!hasAccess) {
+                    log.warn("Access denied: Party {} does not have VIEW permission on solution {}",
+                            context.getPartyId(), solutionId);
+                    throw new AccessDeniedException(
+                            "You do not have permission to view this solution");
+                }
+
+                log.debug("Entitlement check passed for party {} on solution {}",
+                        context.getPartyId(), solutionId);
+            }
+        }
+
         Solution solution = solutionService.getSolution(tenantId, solutionId);
         return ResponseEntity.ok(solution);
     }

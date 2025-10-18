@@ -36,6 +36,7 @@ public class ContextResolutionServiceImpl implements ContextResolutionService {
 
     private final PartyRepository partyRepository;
     private final OrganizationRepository organizationRepository;
+    private final com.bank.product.party.service.EntitlementResolutionService entitlementResolutionService;
 
     /**
      * Resolve complete processing context (with caching)
@@ -216,7 +217,12 @@ public class ContextResolutionServiceImpl implements ContextResolutionService {
             builder.relationshipContext(buildRelationshipContext(org));
 
             // Permissions
-            builder.permissions(buildPermissionContext(org, request.getRoles()));
+            PermissionContext permissionContext = buildPermissionContext(org, request.getRoles());
+
+            // Resolve fine-grained entitlements
+            enrichPermissionContextWithEntitlements(permissionContext, tenantId, party.getFederatedId());
+
+            builder.permissions(permissionContext);
 
             // Core banking
             builder.coreSystemType(determineCoreSystem(org))
@@ -441,5 +447,41 @@ public class ContextResolutionServiceImpl implements ContextResolutionService {
             case "SG" -> "http://mock-core-api:3002";
             default -> "http://mock-core-api:3000";
         };
+    }
+
+    /**
+     * Enrich PermissionContext with fine-grained entitlements
+     *
+     * This method resolves resource-scoped entitlements from MongoDB and
+     * adds them to the PermissionContext for fast authorization checks.
+     *
+     * @param permissionContext PermissionContext to enrich (modified in place)
+     * @param tenantId Tenant ID
+     * @param partyId Party ID
+     */
+    private void enrichPermissionContextWithEntitlements(
+            PermissionContext permissionContext,
+            String tenantId,
+            String partyId) {
+
+        try {
+            // Resolve all resource permissions for the party
+            Map<String, com.bank.product.entitlement.ResourcePermission> resourcePermissions =
+                    entitlementResolutionService.resolveAllPermissions(tenantId, partyId);
+
+            // Add each resource permission to the context
+            for (com.bank.product.entitlement.ResourcePermission permission : resourcePermissions.values()) {
+                permissionContext.addResourcePermission(permission);
+            }
+
+            log.debug("Enriched permission context with {} resource entitlements for party: {}",
+                    resourcePermissions.size(), partyId);
+
+        } catch (Exception e) {
+            // Don't fail context resolution if entitlements fail to load
+            // Fall back to coarse-grained permissions
+            log.error("Failed to enrich permission context with entitlements for party: {}, error: {}",
+                    partyId, e.getMessage(), e);
+        }
     }
 }

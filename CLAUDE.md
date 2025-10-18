@@ -152,6 +152,93 @@ spring:
 - Docker images
 - Git repository
 
+#### Fine-Grained Entitlements (ABAC) ✅ NEW
+
+**Resource-scoped permissions with attribute-based access control.**
+
+All services SHOULD implement fine-grained authorization for sensitive resources:
+
+```java
+// Check fine-grained permission in controller
+@GetMapping("/{solutionId}")
+public ResponseEntity<Solution> getSolution(@PathVariable String solutionId) {
+    ProcessingContext context = ContextHolder.getRequiredContext();
+
+    // Check resource-specific permission
+    if (!context.getPermissions().hasPermissionOnResource(
+            ResourceOperation.VIEW, ResourceType.SOLUTION, solutionId)) {
+        throw new AccessDeniedException("Not authorized to view this solution");
+    }
+
+    return ResponseEntity.ok(solutionService.getSolution(solutionId));
+}
+```
+
+**Key Features:**
+- ✅ **Resource-Specific:** Per-solution, per-account permissions
+- ✅ **Type-Level:** Permissions on all resources of a type
+- ✅ **Constraint-Based:** Amount limits, channels, time windows
+- ✅ **Cached:** Resolved once per request in ProcessingContext
+- ✅ **Backward Compatible:** Falls back to coarse-grained permissions
+
+**Entitlement Sources:**
+- `EXPLICIT_GRANT` - Manually granted by admin
+- `RELATIONSHIP_BASED` - Derived from Neo4j relationships (AuthorizedSigner)
+- `ROLE_BASED` - From user roles (ROLE_ADMIN → full access)
+- `DELEGATED` - Temporary delegation with expiration
+- `OWNER` - Creator of resource gets full access
+
+**Grant Entitlement Example:**
+```java
+entitlementService.grantEntitlement(
+    "tenant-001",                    // tenantId
+    "alice-party-001",               // partyId
+    ResourceType.SOLUTION,           // resourceType
+    "solution-123",                  // resourceId (null = type-level)
+    Set.of(VIEW, CONFIGURE, UPDATE), // operations
+    EntitlementConstraints.builder()
+        .maxAmount(new BigDecimal("50000"))
+        .allowedChannels(Set.of("WEB", "MOBILE"))
+        .requiresMfa(true)
+        .build(),
+    "admin-party-001",               // grantedBy
+    EntitlementSource.EXPLICIT_GRANT
+);
+```
+
+**Check with Constraints:**
+```java
+// Check with amount constraint
+if (!context.getPermissions().hasPermissionOnResourceWithAmount(
+        ResourceOperation.TRANSACT, ResourceType.ACCOUNT, accountId, amount)) {
+    throw new AccessDeniedException("Amount exceeds authorized limit");
+}
+
+// Check with channel constraint
+if (!context.getPermissions().hasPermissionOnResourceWithChannel(
+        ResourceOperation.CONFIGURE, ResourceType.SOLUTION, solutionId, channel)) {
+    throw new AccessDeniedException("Channel not authorized");
+}
+```
+
+**MongoDB Indexes (Required):**
+```javascript
+db.entitlements.createIndex(
+    { "tenantId": 1, "partyId": 1, "resourceType": 1 },
+    { name: "tenant_party_resource_idx" }
+);
+db.entitlements.createIndex(
+    { "tenantId": 1, "resourceType": 1, "resourceId": 1 },
+    { name: "tenant_resource_idx" }
+);
+db.entitlements.createIndex(
+    { "tenantId": 1, "partyId": 1, "active": 1 },
+    { name: "tenant_party_active_idx" }
+);
+```
+
+**See:** [FINE_GRAINED_ENTITLEMENTS.md](FINE_GRAINED_ENTITLEMENTS.md) for complete documentation.
+
 ### 3. API Versioning Standards ✅
 
 #### URL-based Versioning (Required)
@@ -610,12 +697,14 @@ services:
 4. **[SECURITY.md](SECURITY.md)** - Security guidelines and environment variable reference
 5. **[TENANT_ISOLATION_GUIDE.md](TENANT_ISOLATION_GUIDE.md)** - Complete tenant isolation implementation guide ✅
 6. **[OUTBOX_PATTERN_DESIGN.md](OUTBOX_PATTERN_DESIGN.md)** - Event-driven architecture with transactional outbox pattern ✅
+7. **[FINE_GRAINED_ENTITLEMENTS.md](FINE_GRAINED_ENTITLEMENTS.md)** - Attribute-Based Access Control (ABAC) for resource-scoped permissions ✅
 
 **Test Scripts:**
 - [test-optimizations.sh](test-optimizations.sh) - Performance and connection pooling tests
 - [test-circuit-breaker.sh](test-circuit-breaker.sh) - Circuit breaker failure scenarios
 - [test-idempotency.sh](test-idempotency.sh) - Duplicate request handling
 - [test-tenant-isolation.sh](test-tenant-isolation.sh) - Multi-tenant isolation tests
+- [test-fine-grained-entitlements.sh](test-fine-grained-entitlements.sh) - Fine-grained entitlement validation ✅
 
 ---
 
