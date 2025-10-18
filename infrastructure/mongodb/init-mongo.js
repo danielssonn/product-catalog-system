@@ -18,6 +18,7 @@ db.createCollection('audit_logs');
 db.createCollection('api_versions');
 db.createCollection('schema_versions');
 db.createCollection('users');
+db.createCollection('entitlements');  // Fine-grained access control
 
 print('Collections created successfully');
 
@@ -347,6 +348,34 @@ db.users.createIndex({ "username": 1 }, { unique: true });
 db.users.createIndex({ "email": 1 });
 db.users.createIndex({ "enabled": 1 });
 print('Users indexes created');
+
+// ============================================
+// ENTITLEMENTS DOMAIN INDEXES (Fine-Grained Access Control)
+// ============================================
+
+// Entitlement indexes - optimized for fast authorization lookups
+// Critical: These indexes MUST exist for performance
+db.entitlements.createIndex(
+    { "tenantId": 1, "partyId": 1, "resourceType": 1 },
+    { name: "tenant_party_resource_idx" }
+);
+db.entitlements.createIndex(
+    { "tenantId": 1, "resourceType": 1, "resourceId": 1 },
+    { name: "tenant_resource_idx" }
+);
+db.entitlements.createIndex(
+    { "tenantId": 1, "source": 1 },
+    { name: "tenant_source_idx" }
+);
+db.entitlements.createIndex(
+    { "expiresAt": 1 },
+    { name: "expiry_idx" }
+);
+db.entitlements.createIndex(
+    { "tenantId": 1, "partyId": 1, "active": 1 },
+    { name: "tenant_party_active_idx" }
+);
+print('Entitlements indexes created');
 
 // Insert sample users
 // Passwords are BCrypt encrypted with $2a$ prefix (Java BCryptPasswordEncoder compatible):
@@ -833,4 +862,160 @@ db.product_types.insertMany([
 ]);
 
 print('Product type definitions inserted: 17 types');
+
+// ============================================
+// SAMPLE ENTITLEMENTS (Fine-Grained Access Control)
+// ============================================
+
+// Sample entitlements for testing
+// These demonstrate different entitlement patterns:
+// 1. Resource-specific (solution-123)
+// 2. Type-level (all CHECKING solutions)
+// 3. Constrained (amount limits, channel restrictions)
+
+db.entitlements.insertMany([
+    // Example 1: Alice can VIEW and CONFIGURE a specific solution
+    {
+        tenantId: "tenant-001",
+        partyId: "alice-party-001",
+        resourceType: "SOLUTION",
+        resourceId: "solution-checking-premium-001",
+        operations: ["VIEW", "CONFIGURE", "UPDATE"],
+        constraints: {
+            maxAmount: NumberDecimal("50000"),
+            minAmount: NumberDecimal("0"),
+            allowedChannels: ["WEB", "MOBILE"],
+            blockedChannels: [],
+            allowedProductTypes: ["CHECKING"],
+            requiresApproval: false,
+            requiresMfa: false,
+            allowedCountries: ["US"],
+            blockedCountries: []
+        },
+        source: "EXPLICIT_GRANT",
+        grantedBy: "admin-party-001",
+        grantedAt: new Date(),
+        active: true,
+        priority: 10,
+        metadata: {
+            grantReason: "Product manager assigned to checking products"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+
+    // Example 2: Bob can VIEW all CHECKING solutions (type-level permission)
+    {
+        tenantId: "tenant-001",
+        partyId: "bob-party-002",
+        resourceType: "SOLUTION",
+        resourceId: null,  // null = applies to all CHECKING solutions
+        operations: ["VIEW", "LIST"],
+        constraints: {
+            allowedProductTypes: ["CHECKING"],
+            requiresApproval: false,
+            requiresMfa: false
+        },
+        source: "ROLE_BASED",
+        sourceReference: "ROLE_VIEWER",
+        grantedBy: "admin-party-001",
+        grantedAt: new Date(),
+        active: true,
+        priority: 5,
+        metadata: {
+            grantReason: "Viewer role for checking products"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+
+    // Example 3: Carol can TRANSACT on a specific account with limits
+    {
+        tenantId: "tenant-001",
+        partyId: "carol-party-003",
+        resourceType: "ACCOUNT",
+        resourceId: "account-checking-12345",
+        operations: ["VIEW", "TRANSACT", "INITIATE_PAYMENT"],
+        constraints: {
+            maxAmount: NumberDecimal("10000"),
+            minAmount: NumberDecimal("0"),
+            dailyLimit: NumberDecimal("25000"),
+            monthlyLimit: NumberDecimal("100000"),
+            allowedChannels: ["WEB", "MOBILE"],
+            blockedChannels: ["ATM"],
+            allowedTransactionTypes: ["ACH", "WIRE"],
+            requiresApproval: true,
+            approvalThreshold: NumberDecimal("5000"),
+            requiresMfa: true,
+            allowedCountries: ["US"],
+            blockedCountries: []
+        },
+        source: "RELATIONSHIP_BASED",
+        sourceReference: "AuthorizedSigner",
+        grantedBy: "system",
+        grantedAt: new Date(),
+        active: true,
+        priority: 15,
+        metadata: {
+            grantReason: "Authorized signer on account",
+            relationshipId: "rel-auth-signer-001"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+
+    // Example 4: Dave (admin) has full access to catalog products
+    {
+        tenantId: "tenant-001",
+        partyId: "dave-party-004",
+        resourceType: "CATALOG_PRODUCT",
+        resourceId: null,  // All catalog products
+        operations: ["VIEW", "CREATE", "UPDATE", "DELETE", "CONFIGURE", "ACTIVATE", "DEACTIVATE"],
+        constraints: {
+            requiresApproval: false,
+            requiresMfa: false
+        },
+        source: "ROLE_BASED",
+        sourceReference: "ROLE_ADMIN",
+        grantedBy: "system",
+        grantedAt: new Date(),
+        active: true,
+        priority: 100,
+        metadata: {
+            grantReason: "Administrator full access"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+    },
+
+    // Example 5: Eve has delegated authority (temporary, expires in 30 days)
+    {
+        tenantId: "tenant-001",
+        partyId: "eve-party-005",
+        resourceType: "WORKFLOW",
+        resourceId: null,
+        operations: ["VIEW", "APPROVE_WORKFLOW", "REJECT_WORKFLOW"],
+        constraints: {
+            maxAmount: NumberDecimal("100000"),
+            requiresApproval: false,
+            requiresMfa: true
+        },
+        source: "DELEGATED",
+        sourceReference: "alice-party-001",
+        grantedBy: "alice-party-001",
+        grantedAt: new Date(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),  // 30 days
+        active: true,
+        priority: 12,
+        grantReason: "Temporary delegation while Alice is on vacation",
+        metadata: {
+            delegationType: "TEMPORARY_ABSENCE",
+            originalOwner: "alice-party-001"
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+    }
+]);
+
+print('Sample entitlements inserted: 5 entitlements');
 print('MongoDB initialization completed successfully!');

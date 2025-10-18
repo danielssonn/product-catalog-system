@@ -1,5 +1,8 @@
 package com.bank.product.context;
 
+import com.bank.product.entitlement.ResourceOperation;
+import com.bank.product.entitlement.ResourcePermission;
+import com.bank.product.entitlement.ResourceType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -131,6 +134,19 @@ public class PermissionContext implements Serializable {
      */
     @Builder.Default
     private Map<String, String> permissionMetadata = new HashMap<>();
+
+    /**
+     * Fine-grained resource-scoped entitlements
+     * Key: resourceType:resourceId (e.g., "SOLUTION:sol-123", "ACCOUNT:acc-456")
+     * Value: ResourcePermission with allowed operations and constraints
+     *
+     * This enables checks like:
+     * - Can party VIEW solution sol-123?
+     * - Can party TRANSACT on account acc-456 with amount $50K?
+     * - Can party CONFIGURE CHECKING solutions (resourceId = null)?
+     */
+    @Builder.Default
+    private Map<String, ResourcePermission> resourceEntitlements = new HashMap<>();
 
     /**
      * Check if party has specific permission
@@ -298,5 +314,189 @@ public class PermissionContext implements Serializable {
                 .permissionSource("RESTRICTED")
                 .permissionMetadata(new HashMap<>())
                 .build();
+    }
+
+    // ========================================================================
+    // Resource-Scoped Permission Methods (Fine-Grained ABAC)
+    // ========================================================================
+
+    /**
+     * Check if party has permission to perform operation on specific resource
+     *
+     * @param operation Operation to perform (e.g., "VIEW", "TRANSACT")
+     * @param resourceType Resource type (e.g., SOLUTION, ACCOUNT)
+     * @param resourceId Specific resource ID (null checks type-level permissions)
+     * @return true if permitted
+     */
+    public boolean hasPermissionOnResource(String operation, ResourceType resourceType, String resourceId) {
+        if (operation == null || resourceType == null) {
+            return false;
+        }
+
+        try {
+            ResourceOperation resourceOp = ResourceOperation.valueOf(operation.toUpperCase());
+            return hasPermissionOnResource(resourceOp, resourceType, resourceId);
+        } catch (IllegalArgumentException e) {
+            // Operation not recognized as ResourceOperation
+            return false;
+        }
+    }
+
+    /**
+     * Check if party has permission to perform operation on specific resource
+     *
+     * @param operation ResourceOperation enum
+     * @param resourceType Resource type
+     * @param resourceId Specific resource ID (null checks type-level permissions)
+     * @return true if permitted
+     */
+    public boolean hasPermissionOnResource(ResourceOperation operation, ResourceType resourceType, String resourceId) {
+        if (operation == null || resourceType == null) {
+            return false;
+        }
+
+        // Check specific resource permission first
+        if (resourceId != null) {
+            String key = makeResourceKey(resourceType, resourceId);
+            ResourcePermission perm = resourceEntitlements.get(key);
+            if (perm != null && perm.hasOperation(operation)) {
+                return true;
+            }
+        }
+
+        // Check type-level permission (resourceId = null)
+        String typeKey = makeResourceKey(resourceType, null);
+        ResourcePermission typePerm = resourceEntitlements.get(typeKey);
+        if (typePerm != null && typePerm.hasOperation(operation)) {
+            return true;
+        }
+
+        // Fall back to global permissions for backward compatibility
+        return hasPermission(operation.name());
+    }
+
+    /**
+     * Get resource permission for specific resource
+     *
+     * @param resourceType Resource type
+     * @param resourceId Specific resource ID
+     * @return ResourcePermission if exists, null otherwise
+     */
+    public ResourcePermission getResourcePermission(ResourceType resourceType, String resourceId) {
+        if (resourceType == null) {
+            return null;
+        }
+
+        // Try specific resource first
+        if (resourceId != null) {
+            String key = makeResourceKey(resourceType, resourceId);
+            ResourcePermission perm = resourceEntitlements.get(key);
+            if (perm != null) {
+                return perm;
+            }
+        }
+
+        // Fall back to type-level permission
+        String typeKey = makeResourceKey(resourceType, null);
+        return resourceEntitlements.get(typeKey);
+    }
+
+    /**
+     * Add resource permission
+     *
+     * @param permission ResourcePermission to add
+     */
+    public void addResourcePermission(ResourcePermission permission) {
+        if (permission == null || permission.getResourceType() == null) {
+            return;
+        }
+
+        String key = makeResourceKey(permission.getResourceType(), permission.getResourceId());
+        resourceEntitlements.put(key, permission);
+    }
+
+    /**
+     * Check if party has permission on resource with amount constraint
+     *
+     * @param operation Operation to perform
+     * @param resourceType Resource type
+     * @param resourceId Specific resource ID
+     * @param amount Transaction amount
+     * @return true if permitted and amount within limits
+     */
+    public boolean hasPermissionOnResourceWithAmount(ResourceOperation operation,
+                                                      ResourceType resourceType,
+                                                      String resourceId,
+                                                      BigDecimal amount) {
+        if (!hasPermissionOnResource(operation, resourceType, resourceId)) {
+            return false;
+        }
+
+        ResourcePermission perm = getResourcePermission(resourceType, resourceId);
+        if (perm == null) {
+            return false;
+        }
+
+        return perm.isAmountAllowed(amount);
+    }
+
+    /**
+     * Check if party has permission on resource with channel constraint
+     *
+     * @param operation Operation to perform
+     * @param resourceType Resource type
+     * @param resourceId Specific resource ID
+     * @param channel Channel (e.g., "WEB", "MOBILE")
+     * @return true if permitted and channel allowed
+     */
+    public boolean hasPermissionOnResourceWithChannel(ResourceOperation operation,
+                                                       ResourceType resourceType,
+                                                       String resourceId,
+                                                       String channel) {
+        if (!hasPermissionOnResource(operation, resourceType, resourceId)) {
+            return false;
+        }
+
+        ResourcePermission perm = getResourcePermission(resourceType, resourceId);
+        if (perm == null) {
+            return false;
+        }
+
+        return perm.isChannelAllowed(channel);
+    }
+
+    /**
+     * Get all resource permissions
+     *
+     * @return Map of all resource permissions
+     */
+    public Map<String, ResourcePermission> getAllResourcePermissions() {
+        return new HashMap<>(resourceEntitlements);
+    }
+
+    /**
+     * Get all permissions for a specific resource type
+     *
+     * @param resourceType Resource type
+     * @return List of ResourcePermissions for that type
+     */
+    public List<ResourcePermission> getPermissionsForType(ResourceType resourceType) {
+        if (resourceType == null) {
+            return Collections.emptyList();
+        }
+
+        return resourceEntitlements.values().stream()
+                .filter(perm -> perm.getResourceType().equals(resourceType))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Make resource key for map lookup
+     */
+    private String makeResourceKey(ResourceType resourceType, String resourceId) {
+        if (resourceId == null) {
+            return resourceType.name() + ":*";
+        }
+        return resourceType.name() + ":" + resourceId;
     }
 }
