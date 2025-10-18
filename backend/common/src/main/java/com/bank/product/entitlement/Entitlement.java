@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -252,29 +253,5 @@ public class Entitlement {
         this.revokedAt = null;
         this.revokeReason = null;
         this.updatedAt = Instant.now();
-    }
-
-    /**
-     * Builder helper: Set default timestamps
-     */
-    public static class EntitlementBuilder {
-        public Entitlement build() {
-            if (createdAt == null) {
-                createdAt = Instant.now();
-            }
-            if (updatedAt == null) {
-                updatedAt = Instant.now();
-            }
-            if (grantedAt == null) {
-                grantedAt = Instant.now();
-            }
-            if (constraints == null) {
-                constraints = EntitlementConstraints.none();
-            }
-            return new Entitlement(id, tenantId, partyId, resourceType, resourceId,
-                    operations, constraints, source, sourceReference, grantedBy,
-                    grantedAt, expiresAt, active, grantReason, revokeReason,
-                    revokedAt, revokedBy, priority, metadata, createdAt, updatedAt);
-        }
     }
 }
