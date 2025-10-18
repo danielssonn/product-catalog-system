@@ -183,11 +183,19 @@ Result: Parallel development, clear ownership, specialized expertise
 | **notification-service** | Pod 3 | Email, SMS, Kafka consumer |
 | **DevOps tooling** | Pod 3 | CI/CD, monitoring, infrastructure |
 
-**Note:** tenant-service moved to Pod 1 because:
-- Tenant is an organizational identity concept (WHO operates WHERE)
-- Context resolution requires both tenant + party atomically (<100ms target)
-- Party-to-tenant relationship is core to identity domain (Neo4j: EMPLOYED_BY)
-- Avoids cross-pod dependency on every request
+**Notes on Service Ownership:**
+1. **tenant-service moved to Pod 1** because:
+   - Tenant is an organizational identity concept (WHO operates WHERE)
+   - Context resolution requires both tenant + party atomically (<100ms target)
+   - Party-to-tenant relationship is core to identity domain (Neo4j: EMPLOYED_BY)
+   - Avoids cross-pod dependency on every request
+
+2. **File channel stays in Pod 3** because:
+   - File upload is a DELIVERY MECHANISM, not business logic
+   - One of 6 channel types (Public API, Host-to-Host, ERP, Portal, Salesforce, Admin)
+   - Cross-cutting concern: Could be used for bulk party imports, product configs, tenant onboarding
+   - Infrastructure pattern: File parsing, async processing, callbacks are platform capabilities
+   - Product Service (Pod 2) owns WHAT to configure, API Gateway (Pod 3) owns HOW to receive requests
 
 ---
 
@@ -504,16 +512,20 @@ Response: {
 
 **Core Capabilities:**
 - **API Gateway:** Routing, context injection, rate limiting, authentication
+- **Multi-Channel Integration:** 6 channel types (Public API, Host-to-Host file, ERP, Portal, Salesforce, Admin)
+- **File Processing Channel:** Batch file upload (CSV, JSON, ISO20022 XML), async processing, callbacks
 - **Audit & Compliance:** Comprehensive audit logging, event consumption, compliance reports
 - **Notifications:** Email, SMS, push notifications (Kafka consumers)
 - **DevOps Tooling:** CI/CD pipelines, monitoring, logging, infrastructure as code
 - **Observability:** Prometheus, Grafana, ELK stack, distributed tracing
-- **Multi-Channel Integration:** Core banking, mobile, ATM, partner APIs (Phase 5)
+- **Core Banking Integration:** FIS, Fiserv, Temenos integration (Phase 5)
 
 **Services Owned:**
-- **api-gateway** - Spring Cloud Gateway, routing, rate limiting, context injection
+- **api-gateway** - Spring Cloud Gateway, routing, rate limiting, context injection, multi-channel support
+  - **Includes:** FileProcessingController, FileProcessingService, CSV/JSON/XML parsers
+  - **Channels:** Public API (/api/v1/), Host-to-Host (/channel/host-to-host/), ERP, Portal, Salesforce, Admin
 - **audit-service** - MongoDB, Kafka consumer, compliance logging
-- **notification-service** - Kafka consumer, SMTP, SMS providers
+- **notification-service** - Kafka consumer, SMTP, SMS providers, callback notifications
 - **DevOps tooling** - Jenkins/GitHub Actions, Terraform, Kubernetes, monitoring
 
 **Why Lower Complexity:**
@@ -547,11 +559,12 @@ Response: {
   - **notification-service** (Kafka consumer, SMTP/SendGrid)
   - **Skills:** Java/Spring Boot, Kafka, MongoDB, SMTP integration
 
-- **1x Backend Engineer** (API Gateway, 0.5 FTE)
+- **1x Backend Engineer** (API Gateway, 0.5-1 FTE)
   - **api-gateway** setup (Spring Cloud Gateway)
   - Context injection (calls Pod 1 party-service for context resolution)
   - Rate limiting, routing, health checks
-  - **Skills:** Spring Cloud Gateway, REST APIs, caching (Redis)
+  - **File channel implementation** (CSV/JSON parsers, async file processing)
+  - **Skills:** Spring Cloud Gateway, Spring WebFlux (reactive), file parsing, REST APIs, caching (Redis)
 
 **Phase 2 (Months 5-7): 4-5 FTEs (+1 QA Engineer)**
 
@@ -575,14 +588,16 @@ Response: {
 **New Roles:**
 - **1x Integration Architect** (Core banking specialist)
   - FIS, Fiserv, Temenos integration
-  - ISO20022 message formats
+  - ISO20022 message formats (enhanced file channel support)
   - Real-time account opening
   - **Skills:** Core banking platforms, financial messaging, integration patterns
 
 - **+1x Backend Engineer** (Multi-channel integration, optional)
-  - Mobile API gateway
+  - Mobile API gateway enhancements
   - ATM integration
   - Partner API management
+  - Enhanced file channel formats (FIS-specific, Fiserv-specific)
+  - **Skills:** Spring Boot, message transformation, financial protocols
 
 **Phase 5 Leadership Addition:**
 - **1x Product Lead - Integration & Channels** (0.5-1 FTE)
